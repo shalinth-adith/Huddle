@@ -6,27 +6,23 @@
 //
 
 import SwiftUI
-import FirebaseCore
+ import FirebaseCore
+ import FirebaseAuth
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-  func application(_ application: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-    FirebaseApp.configure()
-    return true
-  }
-}
+ @main
+ struct HuddleApp: App {
 
-@main
-struct YourApp: App {
-  // register app delegate for Firebase setup
-  @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+     @StateObject private var authService = AuthService()
 
-  var body: some Scene {
-    WindowGroup {
-      NavigationView {
-        ContentView()
-      }
-    }
-  }
-}
+     init() {
+         FirebaseApp.configure()
+     }
+
+     var body: some Scene {
+         WindowGroup {
+             ContentView()
+                 .environmentObject(authService)
+         }
+     }
+ }
 
