@@ -18,9 +18,10 @@ struct RootView: View {
                     showNameInput = true
                     
                 })
-            } else if authService.currentUser?.currentFamilyId == nil {
-                Text("Create/join Family Screen")
-                    .font(.system(size: 24 ,design: .rounded))
+            }  else if authService.currentUser?.currentFamilyId == nil {
+               
+                CreateJoinFamily()
+                    .environmentObject(authService)
             }else {
                 Text("Family Feed Screen ")
                     .font(.system(size: 24 ,design: .rounded))
