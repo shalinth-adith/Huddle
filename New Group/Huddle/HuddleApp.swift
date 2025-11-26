@@ -20,7 +20,7 @@ import SwiftUI
 
      var body: some Scene {
          WindowGroup {
-             ContentView()
+             RootView()
                  .environmentObject(authService)
          }
      }

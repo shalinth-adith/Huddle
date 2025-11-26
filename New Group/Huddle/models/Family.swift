@@ -8,14 +8,14 @@
 import Foundation
 import FirebaseFirestore
 
-struct family: Codable , Identifiable {
+struct Family: Codable , Identifiable {
     @DocumentID var id: String?
     var name : String
     var code : String
     var createdAt : Date?
-    var memberId : [String]
+    var members : [Member]
     
     enum CodingKeys: String, CodingKey {
-        case id, name, code, createdAt, memberId
+        case id, name, code, createdAt, members
     }
 }
