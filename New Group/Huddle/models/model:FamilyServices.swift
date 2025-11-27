@@ -8,7 +8,7 @@ class FamilyService  {
   
     private func generateFamilyCode() -> String {
         let code = String(format: "%06d", Int.random(in: 0...999999))
-        return code
+        return "H-\(code)"
     }
 
  

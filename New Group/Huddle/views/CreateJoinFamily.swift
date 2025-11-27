@@ -29,7 +29,7 @@ struct CreateJoinFamily: View {
                      }
                      .padding(.top, 20)
 
-                     // Icon
+                    
                      Image(systemName: "house.circle.fill")
                     .font(.system(size:80))
                     .foregroundStyle(Color.huddleCoral)
