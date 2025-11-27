@@ -87,14 +87,14 @@ struct CreateJoinFamily: View {
                                   .padding(.bottom, 50)
                               }
                           }
-                          .sheet(isPresented: $showCreateFamily) {
-                             
-                              Text("Create Family Screen")
-                          }
-                          .sheet(isPresented: $showJoinFamily) {
-                            
-                              Text("Join Family Screen")
-                          }
+                            .sheet(isPresented: $showCreateFamily) {
+                                    CreateFamily()
+                                    .environmentObject(authService)
+                                }
+                            .sheet(isPresented: $showJoinFamily) {
+                                  JoinFamily()
+                                      .environmentObject(authService)
+                              }
                       }
                   }
 

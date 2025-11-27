@@ -61,6 +61,7 @@ struct CreateFamily: View {
             
             TextField("Family Name : ", text: $familyName)
                 .font(.system(size: 18,design: .rounded))
+                .autocorrectionDisabled(true)  
                 .padding()
                 .background(Color.white)
                 .cornerRadius(12)

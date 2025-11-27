@@ -35,6 +35,7 @@ struct NameInputView: View {
                 
                 TextField("Enter Your Name", text: $name)
                     .font(Font.system(size: 18,design: .rounded))
+                    .autocorrectionDisabled(true)
                     .padding()
                     .background(Color.white)
                     .cornerRadius(12)

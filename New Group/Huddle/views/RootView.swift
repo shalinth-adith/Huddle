@@ -23,9 +23,20 @@ struct RootView: View {
                 CreateJoinFamily()
                     .environmentObject(authService)
             }else {
-                Text("Family Feed Screen ")
-                    .font(.system(size: 24 ,design: .rounded))
-            }
+                  VStack(spacing: 20) {
+                      Text("Family Feed Screen")
+                          .font(.system(size: 24, design: .rounded))
+
+                      Button(action: {
+                          authService.signOut()
+                      }) {
+                          Text("Sign Out (Testing)")
+                              .font(.system(size: 14, design: .rounded))
+                              .foregroundColor(.red)
+                      }
+                  }
+              }
+
             if showNameInput && !authService.isAuthenticated {
                              NameInputView(onSubmit: { name in
                                  handleSignIn(name: name)
