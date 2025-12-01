@@ -235,8 +235,10 @@ import SwiftUI
               }
           }
           .sheet(isPresented: $showShoppingList) {
-              Text("Shopping List Screen")
-                  .font(.system(size: 24, design: .rounded))
+              if let family = family {
+                  ShoppingList(family: family)
+                      .environmentObject(authService)
+              }
           }
       }
 

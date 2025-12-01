@@ -12,7 +12,7 @@ struct RootView: View {
     @State private var showNameInput = false
     
     var body: some View {
-        ZStack {
+        ZStack { 
             if !authService.isAuthenticated {
                 WelcomeView(onGetStarted:{
                     showNameInput = true
