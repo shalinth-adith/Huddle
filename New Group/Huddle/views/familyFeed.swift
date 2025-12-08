@@ -49,6 +49,7 @@ import SwiftUI
 
                   Text("\(family.members.count) members")
                       .font(.system(size: 14, weight: .medium, design: .rounded))
+            
                       .foregroundColor(.gray)
               }
 

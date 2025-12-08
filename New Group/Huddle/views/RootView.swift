@@ -9,14 +9,16 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject var authService : AuthService
-    @State private var showNameInput = false
-    
+    @StateObject private var viewModel: RootViewModel
+    init() {
+         _viewModel = StateObject(wrappedValue: RootViewModel(authService: AuthService()))
+     }
     var body: some View {
         ZStack { 
             if !authService.isAuthenticated {
                 WelcomeView(onGetStarted:{
-                    showNameInput = true
-                    
+                    viewModel.showNameInput = true
+
                 })
             }  else if authService.currentUser?.currentFamilyId == nil {
                
@@ -28,28 +30,17 @@ struct RootView: View {
              }
 
 
-            if showNameInput && !authService.isAuthenticated {
+             if viewModel.showNameInput && !authService.isAuthenticated {
                              NameInputView(onSubmit: { name in
-                                 handleSignIn(name: name)
+                                 viewModel.signIn(name: name)
                              })
                              .transition(.move(edge: .bottom))
                          }
                      }
-                     .animation(.easeInOut, value: showNameInput)
+                     .animation(.easeInOut, value: viewModel.showNameInput)
                      .animation(.easeInOut, value: authService.isAuthenticated)
                  }
 
-                 private func handleSignIn(name: String) {
-                     authService.signInAnonymously(displayName: name) { result in
-                         switch result {
-                         case .success(let user):
-                             print("✅ Signed in: \(user.displayName)")
-                             showNameInput = false
-                         case .failure(let error):
-                             print("❌ Error: \(error.localizedDescription)")
-                         }
-                     }
-                 }
              }
 
 
