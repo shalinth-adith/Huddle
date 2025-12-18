@@ -20,8 +20,8 @@ import SwiftUI
 
      var body: some Scene {
          WindowGroup {
-             RootView()
-                 .environmentObject(authService)
+             RootView(authService: authService)
+                   .environmentObject(authService)
          }
      }
  }

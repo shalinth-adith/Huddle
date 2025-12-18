@@ -8,11 +8,13 @@
 import SwiftUI
 
 struct RootView: View {
-    @EnvironmentObject var authService : AuthService
-    @StateObject private var viewModel: RootViewModel
-    init() {
-         _viewModel = StateObject(wrappedValue: RootViewModel(authService: AuthService()))
-     }
+      @EnvironmentObject var authService : AuthService
+      @StateObject private var viewModel: RootViewModel
+
+      init(authService: AuthService) {
+           _viewModel = StateObject(wrappedValue: RootViewModel(authService: authService))
+       }
+
     var body: some View {
         ZStack { 
             if !authService.isAuthenticated {
@@ -45,7 +47,8 @@ struct RootView: View {
 
 
 #Preview {
-    RootView()
-        .environmentObject(AuthService())
+      let authService = AuthService()
+      return RootView(authService: authService)
+          .environmentObject(authService)
+  }
 
-}

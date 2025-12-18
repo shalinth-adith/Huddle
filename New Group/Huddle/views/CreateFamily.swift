@@ -9,22 +9,27 @@ import SwiftUI
 
 struct CreateFamily: View {
     @EnvironmentObject var authService: AuthService
+    @StateObject private var viewModel: CreateFamilyViewModel
     @Environment(\.dismiss) var dismiss
     
-    @State private var familyName: String = ""
-    @State private var isLoading: Bool = false
-    @State private var showSuccess: Bool = false
-    @State private var generateCode: String = ""
-    @State private var errorMessage: String?
     
-    private var familyService = FamilyService()
+    
+    init() {
+        _viewModel = StateObject(wrappedValue: CreateFamilyViewModel(
+            familyService: FamilyService(),
+            authService: AuthService()
+        ))
+    }
+
+    
+    
     
     
     var body: some View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
             
-            if showSuccess{
+            if viewModel.showSuccess{
                 successView
             } else {
                 inputView
@@ -59,7 +64,7 @@ struct CreateFamily: View {
                 .font(.system(size: 16,weight: .medium,design: .rounded))
                 .foregroundColor(.gray)
             
-            TextField("Family Name : ", text: $familyName)
+            TextField("Family Name : ", text: $viewModel.familyName)
                 .font(.system(size: 18,design: .rounded))
                 .autocorrectionDisabled(true)  
                 .padding()
@@ -71,7 +76,7 @@ struct CreateFamily: View {
                 )
                 .padding(.horizontal,40)
             
-            if let error = errorMessage {
+            if let error = viewModel.errorMessage {
                 Text(error)
                     .font(.system(size: 14,design: .rounded))
                     .foregroundColor(.red)
@@ -80,8 +85,8 @@ struct CreateFamily: View {
             
             Spacer()
             
-            Button(action: createFamily){
-                if isLoading{
+            Button(action: viewModel.createFamily){
+                if viewModel.isLoading{
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 }else{
@@ -93,12 +98,12 @@ struct CreateFamily: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(familyName.trimmingCharacters(in: .whitespaces).isEmpty ? Color.gray : Color.huddleCoral)
+            .background(viewModel.isCreateButtonDisabled ? Color.gray : Color.huddleCoral)
             .cornerRadius(16)
             .padding(.horizontal,40)
             .padding(.bottom,50)
-            .disabled(familyName.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
-            
+            .disabled(viewModel.isCreateButtonDisabled)
+
             
         }
     }
@@ -114,7 +119,7 @@ struct CreateFamily: View {
                  .font(.system(size: 14,weight: .medium,design: .rounded))
                  .foregroundColor(.gray)
 
-             Text(generateCode)
+             Text(viewModel.generatedCode)
                  .font(.system(size: 48, weight: .bold, design: .rounded))
                  .foregroundColor(.huddleCoral)
                  .tracking(4)
@@ -152,50 +157,6 @@ struct CreateFamily: View {
              .padding(.bottom, 50)
          }
      }
-
-    
-    private func createFamily() {
-        guard let userId = authService.currentUser?.id,
-              let userName = authService.currentUser?.displayName else {
-            errorMessage = "User not found"
-            return
-        }
-        
-        let trimmedName = familyName.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty else { return }
-        
-        isLoading = true
-        errorMessage = nil
-        
-        familyService.createFamily(
-            familyName: trimmedName,
-            creatorId: userId,
-            creatorName: userName
-        ) { [self] result in
-            isLoading = false
-            
-            switch result {
-            case .success(let family):
-                
-                if let familyId = family.id {
-                    authService.updateUserFamily(familyId: familyId) { result in
-                        switch result {
-                        case .success:
-                            generateCode = family.code
-                            withAnimation {
-                                showSuccess = true
-                            }
-                        case .failure(let error):
-                            errorMessage = "Error: \(error.localizedDescription)"
-                        }
-                    }
-                }
-                
-            case .failure(let error):
-                errorMessage = "Error: \(error.localizedDescription)"
-            }
-        }
-    }
 }
 
  #Preview {
