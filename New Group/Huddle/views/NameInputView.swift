@@ -14,6 +14,7 @@ struct NameInputView: View {
     let onSubmit : (String) -> Void
     
     var body: some View {
+        
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
             
@@ -48,8 +49,10 @@ struct NameInputView: View {
                 Spacer()
                 
                 Button(action: {
+                    
                     isLoading = true
                     onSubmit(name.trimmingCharacters(in: .whitespaces))
+                    
                 }) {
                     if isLoading{
                         ProgressView()

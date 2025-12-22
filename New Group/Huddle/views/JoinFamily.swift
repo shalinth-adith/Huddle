@@ -10,14 +10,16 @@ import SwiftUI
 struct JoinFamily: View {
     @EnvironmentObject var authService: AuthService
     @Environment(\.dismiss) var dismiss
+    @StateObject private var viewModel: JoinFamilyViewModel
+
     
-    @State private var familyCode: String = "H-"
-    @State private var isLoading: Bool = false
-    @State private var showSuccess: Bool = false
-    @State private var joinedFamilyName: String = ""
-    @State private var errorMessage: String?
-    
-    private var familyService = FamilyService()
+    init(authService: AuthService) {
+          _viewModel = StateObject(wrappedValue: JoinFamilyViewModel(
+              familyService: FamilyService(),
+              authService: authService
+          ))
+      }
+
         
     
     
@@ -25,7 +27,7 @@ struct JoinFamily: View {
         ZStack{
             Color.huddleBackground.ignoresSafeArea()
             
-            if showSuccess{
+            if viewModel.showSuccess{
                 successView
             }else{
                 inputView
@@ -59,7 +61,7 @@ struct JoinFamily: View {
                 .font(.system(size: 16,weight: .medium,design: .rounded))
                 .foregroundColor(.gray)
             
-            TextField("H-000000", text: $familyCode)
+            TextField("H-000000", text: $viewModel.familyCode)
                 .font(.system(size: 18,design: .rounded))
                 .padding()
                 .background(Color.white)
@@ -70,22 +72,10 @@ struct JoinFamily: View {
                 )
                 .padding(.horizontal,40)
                 .autocapitalization(.allCharacters)
-                .onChange(of: familyCode) { newValue in
-                      if !newValue.hasPrefix("H-") {
-                          familyCode = "H-"
-                          return
-                      }
-
-                      let digitsOnly = newValue.dropFirst(2).filter { $0.isNumber }
-
-                      if digitsOnly.count <= 6 {
-                          familyCode = "H-\(digitsOnly)"
-                      } else {
-                          familyCode = "H-\(digitsOnly.prefix(6))"
-                      }
+                .onChange(of: viewModel.familyCode) { newValue in
+                      viewModel.formatFamilyCode(newValue)
                   }
-
-            if let error = errorMessage {
+            if let error = viewModel.errorMessage {
                  Text(error)
                      .font(.system(size: 14, design: .rounded))
                      .foregroundColor(.red)
@@ -96,8 +86,8 @@ struct JoinFamily: View {
             Spacer()
             
             
-            Button(action: joinFamily) {
-                  if isLoading {
+            Button(action: viewModel.joinFamily) {
+                if viewModel.isLoading {
                       ProgressView()
                           .progressViewStyle(CircularProgressViewStyle(tint: .white))
                   } else {
@@ -108,11 +98,11 @@ struct JoinFamily: View {
               }
               .frame(maxWidth: .infinity)
               .frame(height: 56)
-              .background(isValidCode ? Color.huddleCoral : Color.gray)
+              .background(viewModel.isValidCode ? Color.huddleCoral : Color.gray)
               .cornerRadius(16)
               .padding(.horizontal, 40)
               .padding(.bottom, 50)
-              .disabled(!isValidCode || isLoading)
+              .disabled(!viewModel.isValidCode || viewModel.isLoading)
         }
     }
     
@@ -128,13 +118,13 @@ struct JoinFamily: View {
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundColor(.gray)
 
-            Text(joinedFamilyName)
+            Text(viewModel.joinedFamilyName)
                 .font(.system(size: 32, weight: .bold, design: .rounded))
                 .foregroundColor(.huddleCoral)
                 .padding(.horizontal, 40)
                 .multilineTextAlignment(.center)
 
-            Text("You're now part of \(joinedFamilyName)")
+            Text("You're now part of \(viewModel.joinedFamilyName)")
                 .font(.system(size: 14, weight: .medium, design: .rounded))
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -160,59 +150,13 @@ struct JoinFamily: View {
 
     
     
-    private func joinFamily() {
-        guard let userId = authService.currentUser?.id,
-              let userName = authService.currentUser?.displayName else {
-            errorMessage = "User Not Found"
-            return
-            
-        }
-        isLoading = true
-        errorMessage = nil
-        
-        familyService.joinFamily(code:familyCode,userId: userId , displayName: userName){ result in
-            isLoading = false
-            switch result {
-            case .success(let family):
-                if let familyId = family.id{
-                    authService.updateUserFamily(familyId: familyId) { updatedResult in
-                        switch updatedResult{
-                        case.success:
-                            joinedFamilyName = family.name
-                            withAnimation{
-                                showSuccess = true
-                            }
-                        case .failure(let error):
-                            errorMessage = "Error : \(error.localizedDescription)"
-                            
-                            
-                        }
-                        
-                    }
-                }
-               
-            case .failure(let error):
-                if error.localizedDescription.contains("Family not found") {
-                                 errorMessage = "Invalid code. Please check and try again."
-                             } else {
-                                 errorMessage = "Error: \(error.localizedDescription)"
-                             }
-
-            }
-            
-        }
-      }
-    private var isValidCode: Bool {
-          familyCode.count == 8 &&
-          familyCode.hasPrefix("H-") &&
-          familyCode.dropFirst(2).allSatisfy { $0.isNumber }
-      }
+   
 }
 
 #Preview {
-    JoinFamily()
-              .environmentObject(AuthService())
-}
+     JoinFamily(authService: AuthService())
+ }
+
 
 
 

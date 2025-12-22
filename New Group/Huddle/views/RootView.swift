@@ -46,7 +46,8 @@ struct RootView: View {
              }
 
 
-#Preview {
+#Preview
+{
       let authService = AuthService()
       return RootView(authService: authService)
           .environmentObject(authService)

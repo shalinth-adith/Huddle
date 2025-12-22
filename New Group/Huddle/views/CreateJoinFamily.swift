@@ -92,7 +92,7 @@ struct CreateJoinFamily: View {
                                     .environmentObject(authService)
                                 }
                             .sheet(isPresented: $showJoinFamily) {
-                                  JoinFamily()
+                                JoinFamily(authService: authService)
                                       .environmentObject(authService)
                               }
                       }
