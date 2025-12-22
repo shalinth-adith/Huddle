@@ -2,20 +2,23 @@ import SwiftUI
 
   struct FamilyFeedView: View {
       @EnvironmentObject var authService: AuthService
-      @State private var family: Family?
-      @State private var isLoading = true
-      @State private var showShareSheet = false
-      @State private var showShoppingList = false
+      @StateObject private var viewModel: FamilyFeedViewModel
 
-      private var familyService = FamilyService()
+        init(authService: AuthService) {
+            _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
+                familyService: FamilyService(),
+                authService: authService
+            ))
+        }
 
+      
       var body: some View {
           ZStack {
               Color.huddleBackground.ignoresSafeArea()
 
-              if isLoading {
+              if viewModel.isLoading {
                   ProgressView()
-              } else if let family = family {
+              } else if let family = viewModel.family {
                   feedContent(family: family)
               } else {
                   Text("Error loading family")
@@ -24,9 +27,9 @@ import SwiftUI
               floatingButton
           }
           .onAppear {
-              loadFamily()
+              viewModel.loadFamily()
           }
-          .sheet(isPresented: $showShareSheet) {
+          .sheet(isPresented: $viewModel.showShareSheet) {
               shareSheet
           }
       }
@@ -56,7 +59,7 @@ import SwiftUI
               Spacer()
 
               Button(action: {
-                  showShareSheet = true
+                  viewModel.showShareSheet = true
               }) {
                   HStack(spacing: 6) {
                       Image(systemName: "square.and.arrow.up")
@@ -221,7 +224,7 @@ import SwiftUI
               HStack {
                   Spacer()
                   Button(action: {
-                      showShoppingList = true
+                      viewModel.showShoppingList = true
                   }) {
                       Image(systemName: "cart.fill")
                           .font(.system(size: 24))
@@ -235,41 +238,18 @@ import SwiftUI
                   .padding(.bottom, 20)
               }
           }
-          .sheet(isPresented: $showShoppingList) {
-              if let family = family {
+          .sheet(isPresented: $viewModel.showShoppingList) {
+              if let family = viewModel.family {
                   ShoppingList(family: family)
                       .environmentObject(authService)
               }
           }
       }
 
-      private func loadFamily() {
-          print("🔍 Loading family...")
-
-          guard let familyId = authService.currentUser?.currentFamilyId else {
-              print("❌ No familyId found!")
-              isLoading = false
-              return
-          }
-
-          print("✅ FamilyId found: \(familyId)")
-
-          familyService.fetchFamily(familyId: familyId) { result in
-              print("📦 Fetch completed")
-              isLoading = false
-
-              switch result {
-              case .success(let fetchedFamily):
-                  print("✅ Family loaded: \(fetchedFamily.name)")
-                  family = fetchedFamily
-              case .failure(let error):
-                  print("❌ Error loading family: \(error.localizedDescription)")
-              }
-          }
-      }
+     
 
       private var shareSheet: some View {
-          if let family = family {
+          if let family = viewModel.family {
               return AnyView(
                   VStack(spacing: 20) {
                       Text("Share Family Code")
@@ -292,7 +272,7 @@ import SwiftUI
                           .foregroundColor(.gray)
 
                       Button("Done") {
-                          showShareSheet = false
+                          viewModel.showShareSheet = false
                       }
                       .font(.system(size: 18, weight: .semibold, design: .rounded))
                       .foregroundColor(.white)
@@ -312,7 +292,7 @@ import SwiftUI
   }
 
   #Preview {
-      FamilyFeedView()
-          .environmentObject(AuthService())
+      FamilyFeedView(authService: AuthService())
+          
   }
 

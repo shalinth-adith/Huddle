@@ -27,8 +27,7 @@ struct RootView: View {
                 CreateJoinFamily()
                     .environmentObject(authService)
             } else {
-                FamilyFeedView()
-                     .environmentObject(authService)
+                FamilyFeedView(authService: authService)
              }
 
 
