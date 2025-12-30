@@ -112,7 +112,76 @@ class MessageService {
                      }
                  }
          }
+    func sendChatMessage(
+         familyId: String,
+         content: String,
+         senderId: String,
+         senderName: String,
+         completion: @escaping (Result<HuddleMessage, Error>) -> Void
+     ) {
+         let messageId = UUID().uuidString
+
+         let message = HuddleMessage(
+             id: messageId,
+             familyID: familyId,
+             senderID: senderId,
+             senderName: senderName,
+             type: .text,
+             content: content,
+             photoURL: nil,
+             isPinned: false,
+             isCompleted: false,
+             createdAt: Date()
+         )
+
+         do {
+             try db.collection("families")
+                 .document(familyId)
+                 .collection("messages")
+                 .document(messageId)
+                 .setData(from: message) { error in
+                     if let error = error {
+                         completion(.failure(error))
+                     } else {
+                         completion(.success(message))
+                     }
+                 }
+         } catch {
+             completion(.failure(error))
+         }
      }
+    func listenToMessages(
+          familyId: String,
+          completion: @escaping (Result<[HuddleMessage], Error>) -> Void
+    ) -> ListenerRegistration {
+        
+        return db.collection("families")
+            .document(familyId)
+            .collection("messages")
+            .whereField("type", isEqualTo: MessageType.text.rawValue)
+            .order(by: "createdAt", descending: false)
+            .addSnapshotListener { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                do {
+                    let messages = try documents.compactMap { doc in
+                        try doc.data(as: HuddleMessage.self)
+                    }
+                    completion(.success(messages))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+    }
+}
 
 
 

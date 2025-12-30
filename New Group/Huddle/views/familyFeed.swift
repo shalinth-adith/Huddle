@@ -1,201 +1,376 @@
 import SwiftUI
 
-  struct FamilyFeedView: View {
-      @EnvironmentObject var authService: AuthService
-      @StateObject private var viewModel: FamilyFeedViewModel
+ struct FamilyFeedView: View {
+     @EnvironmentObject var authService: AuthService
+     @StateObject private var viewModel: FamilyFeedViewModel
+     @State private var messageText: String = ""
+     
+     @FocusState private var isMessageFieldFocused: Bool
 
-        init(authService: AuthService) {
-            _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
-                familyService: FamilyService(),
-                authService: authService
-            ))
-        }
+     init(authService: AuthService) {
+         _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
+             familyService: FamilyService(),
+             authService: authService,
+             messageService: MessageService()
+         ))
+     }
 
-      
-      var body: some View {
-          ZStack {
-              Color.huddleBackground.ignoresSafeArea()
+     var body: some View {
+           ZStack {
+               Color.huddleBackground.ignoresSafeArea()
 
-              if viewModel.isLoading {
-                  ProgressView()
-              } else if let family = viewModel.family {
-                  feedContent(family: family)
-              } else {
-                  Text("Error loading family")
-              }
+               if viewModel.isLoading {
+                   ProgressView()
+               } else if let family = viewModel.family {
+                   feedContent(family: family)
+               } else {
+                   Text("Error loading family")
+               }
 
-              floatingButton
-          }
-          .onAppear {
-              viewModel.loadFamily()
-          }
-          .sheet(isPresented: $viewModel.showShareSheet) {
-              shareSheet
-          }
-      }
+               
+               VStack {
+                   Spacer()
+                   messageInputField()
+               }
+           }
+           .onTapGesture {
+               isMessageFieldFocused = false
+           }
+           .onAppear {
+               viewModel.loadFamily()
+               viewModel.loadMessages()
+               viewModel.loadShoppingItems()
+           }
+           .onDisappear {
+               viewModel.cleanup()
+           }
+           .sheet(isPresented: $viewModel.showShareSheet) {
+               shareSheet
+           }
+           .sheet(isPresented: $viewModel.showShoppingList) {
+               if let family = viewModel.family {
+                   ShoppingList(family: family)
+                       .environmentObject(authService)
+               }
+           }
+       }
 
-      private func feedContent(family: Family) -> some View {
-          VStack(spacing: 0) {
-              headerSection(family: family)
-              membersSection(family: family)
-              pinnedSection()
-              messagesSection()
-          }
-      }
 
-      private func headerSection(family: Family) -> some View {
-          HStack {
-              VStack(alignment: .leading, spacing: 4) {
-                  Text(family.name)
-                      .font(.system(size: 28, weight: .bold, design: .rounded))
-                      .foregroundColor(.huddleCoral)
 
-                  Text("\(family.members.count) members")
-                      .font(.system(size: 14, weight: .medium, design: .rounded))
-            
-                      .foregroundColor(.gray)
-              }
 
-              Spacer()
+     private func feedContent(family: Family) -> some View {
+         VStack(spacing: 0) {
+             headerSection(family: family)
+             membersSection(family: family)
+             shoppingListPreview()
+             pinnedSection()
+             messagesSection()
+         }
+     }
 
+     private func headerSection(family: Family) -> some View {
+         HStack {
+             VStack(alignment: .leading, spacing: 4) {
+                 Text(family.name)
+                     .font(.system(size: 28, weight: .bold, design: .rounded))
+                     .foregroundColor(.huddleCoral)
+
+                 Text("\(family.members.count) members")
+                     .font(.system(size: 14, weight: .medium, design: .rounded))
+                     .foregroundColor(.gray)
+             }
+
+             Spacer()
+
+             Button(action: {
+                 viewModel.showShareSheet = true
+             }) {
+                 HStack(spacing: 6) {
+                     Image(systemName: "square.and.arrow.up")
+                     Text("Share")
+                 }
+                 .font(.system(size: 14, weight: .semibold, design: .rounded))
+                 .foregroundColor(.huddleCoral)
+                 .padding(.horizontal, 12)
+                 .padding(.vertical, 8)
+                 .background(Color.white)
+                 .cornerRadius(20)
+             }
+
+             Button(action: {
+                 authService.signOut()
+             }) {
+                 Image(systemName: "rectangle.portrait.and.arrow.right")
+                     .font(.system(size: 16))
+                     .foregroundColor(.red)
+             }
+         }
+         .padding(.horizontal, 20)
+         .padding(.top, 20)
+         .padding(.bottom, 16)
+     }
+
+     private func membersSection(family: Family) -> some View {
+           HStack(spacing: 12) {
+               // Member avatars (first 3)
+               HStack(spacing: -8) {
+                   ForEach(family.members.prefix(3)) { member in
+                       Circle()
+                           .fill(Color.huddleCoral.opacity(0.2))
+                           .frame(width: 36, height: 36)
+                           .overlay(
+                               Text(getInitials(from: member.displayName))
+                                   .font(.system(size: 12, weight: .bold, design: .rounded))
+                                   .foregroundColor(.huddleCoral)
+                           )
+                           .overlay(
+                               Circle()
+                                   .stroke(Color.white, lineWidth: 2)
+                           )
+                   }
+               }
+
+               Text("\(family.members.count) members")
+                   .font(.system(size: 14, weight: .medium, design: .rounded))
+                   .foregroundColor(.gray)
+
+               Spacer()
+
+               Image(systemName: "chevron.right")
+                   .font(.system(size: 12))
+                   .foregroundColor(.gray)
+           }
+           .padding(.horizontal, 20)
+           .padding(.vertical, 12)
+           .background(Color.white)
+           .cornerRadius(12)
+           .padding(.horizontal, 20)
+           .padding(.bottom, 16)
+       }
+     private func shoppingListPreview() -> some View {
+           let items = viewModel.shoppingItems
+           let firstThree = Array(items.prefix(3))
+           let remainingCount = max(0, items.count - 3)
+
+           return VStack(alignment: .leading, spacing: 12) {
+               HStack {
+                   Image(systemName: "cart.fill")
+                       .font(.system(size: 14))
+                       .foregroundColor(.huddleCoral)
+
+                   Text("Shopping List")
+                       .font(.system(size: 16, weight: .semibold, design: .rounded))
+                       .foregroundColor(.gray)
+
+                   Spacer()
+
+                   if remainingCount > 0 {
+                       Text("+\(remainingCount) more")
+                           .font(.system(size: 12, design: .rounded))
+                           .foregroundColor(.gray)
+                   }
+               }
+               .padding(.horizontal, 20)
+
+               if items.isEmpty {
+                   Text("No items yet")
+                       .font(.system(size: 14, design: .rounded))
+                       .foregroundColor(.gray)
+                       .padding(.horizontal, 20)
+               } else {
+                   VStack(spacing: 8) {
+                       ForEach(firstThree) { item in
+                           shoppingItemRow(item: item)
+                       }
+                   }
+                   .padding(.horizontal, 20)
+               }
+           }
+           .padding(.bottom, 16)
+       }
+
+
+     private func shoppingItemRow(item: HuddleMessage) -> some View {
+          let isCompleted = item.isCompleted
+          let content = item.content
+
+          return HStack(spacing: 12) {
               Button(action: {
-                  viewModel.showShareSheet = true
+                  viewModel.toggleShoppingItem(item)
               }) {
-                  HStack(spacing: 6) {
-                      Image(systemName: "square.and.arrow.up")
-                      Text("Share")
-                  }
-                  .font(.system(size: 14, weight: .semibold, design: .rounded))
-                  .foregroundColor(.huddleCoral)
-                  .padding(.horizontal, 12)
-                  .padding(.vertical, 8)
-                  .background(Color.white)
-                  .cornerRadius(20)
+                  Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
+                      .font(.system(size: 20))
+                      .foregroundColor(isCompleted ? .green : .gray)
               }
 
-              Button(action: {
-                  authService.signOut()
-              }) {
-                  Image(systemName: "rectangle.portrait.and.arrow.right")
-                      .font(.system(size: 16))
-                      .foregroundColor(.red)
-              }
-          }
-          .padding(.horizontal, 20)
-          .padding(.top, 20)
-          .padding(.bottom, 16)
-      }
+              Text(content)
+                  .font(.system(size: 14, design: .rounded))
+                  .foregroundColor(isCompleted ? .gray : .black)
+                  .strikethrough(isCompleted)
 
-      private func membersSection(family: Family) -> some View {
-          VStack(alignment: .leading, spacing: 12) {
-              Text("Family Members")
-                  .font(.system(size: 16, weight: .semibold, design: .rounded))
-                  .foregroundColor(.gray)
-                  .padding(.horizontal, 20)
-
-              ScrollView(.horizontal, showsIndicators: false) {
-                  HStack(spacing: 16) {
-                      ForEach(family.members) { member in
-                          VStack(spacing: 8) {
-                              Circle()
-                                  .fill(Color.huddleCoral.opacity(0.2))
-                                  .frame(width: 60, height: 60)
-                                  .overlay(
-                                      Text(getInitials(from: member.displayName))
-                                          .font(.system(size: 20, weight: .bold, design:
-  .rounded))
-                                          .foregroundColor(.huddleCoral)
-                                  )
-
-                              Text(member.displayName)
-                                  .font(.system(size: 12, weight: .medium, design: .rounded))
-                                  .foregroundColor(.primary)
-                                  .lineLimit(1)
-                          }
-                      }
-                  }
-                  .padding(.horizontal, 20)
-              }
-          }
-          .padding(.bottom, 16)
-      }
-
-      private func getInitials(from name: String) -> String {
-          let components = name.split(separator: " ")
-          let initials = components.prefix(2).compactMap { $0.first }
-          return String(initials).uppercased()
-      }
-
-      private func pinnedSection() -> some View {
-          VStack(alignment: .leading, spacing: 12) {
-              HStack {
-                  Image(systemName: "pin.fill")
-                      .font(.system(size: 14))
-                      .foregroundColor(.huddleCoral)
-
-                  Text("Pinned")
-                      .font(.system(size: 16, weight: .semibold, design: .rounded))
-                      .foregroundColor(.gray)
-
-                  Spacer()
-              }
-              .padding(.horizontal, 20)
-
-              VStack(spacing: 8) {
-                  pinnedItemCard(text: "Don't forget to pick up milk!")
-                  pinnedItemCard(text: "Family dinner on Sunday at 6 PM")
-              }
-              .padding(.horizontal, 20)
-          }
-          .padding(.bottom, 16)
-      }
-
-      private func pinnedItemCard(text: String) -> some View {
-          HStack {
-              Text(text)
-                  .font(.system(size: 14, weight: .medium, design: .rounded))
-                  .foregroundColor(.primary)
               Spacer()
           }
           .padding(12)
-          .background(Color.huddlePeach.opacity(0.3))
+          .background(Color.white)
           .cornerRadius(12)
       }
 
-      private func messagesSection() -> some View {
-          VStack(alignment: .leading, spacing: 12) {
-              HStack {
-                  Image(systemName: "message.fill")
-                      .font(.system(size: 14))
-                      .foregroundColor(.huddleCoral)
 
-                  Text("Messages")
-                      .font(.system(size: 16, weight: .semibold, design: .rounded))
-                      .foregroundColor(.gray)
+     private func getInitials(from name: String) -> String {
+         let components = name.split(separator: " ")
+         let initials = components.prefix(2).compactMap { $0.first }
+         return String(initials).uppercased()
+     }
 
-                  Spacer()
-              }
-              .padding(.horizontal, 20)
+     private func pinnedSection() -> some View {
+         VStack(alignment: .leading, spacing: 12) {
+             HStack {
+                 Image(systemName: "pin.fill")
+                     .font(.system(size: 14))
+                     .foregroundColor(.huddleCoral)
+
+                 Text("Pinned")
+                     .font(.system(size: 16, weight: .semibold, design: .rounded))
+                     .foregroundColor(.gray)
+
+                 Spacer()
+             }
+             .padding(.horizontal, 20)
+
+             VStack(spacing: 8) {
+                 pinnedItemCard(text: "Don't forget to pick up milk!")
+                 pinnedItemCard(text: "Family dinner on Sunday at 6 PM")
+             }
+             .padding(.horizontal, 20)
+         }
+         .padding(.bottom, 16)
+     }
+
+     private func pinnedItemCard(text: String) -> some View {
+         HStack {
+             Text(text)
+                 .font(.system(size: 14, weight: .medium, design: .rounded))
+                 .foregroundColor(.black)
+             Spacer()
+         }
+         .padding(12)
+         .background(Color.huddlePeach.opacity(0.3))
+         .cornerRadius(12)
+     }
+
+     private func messagesSection() -> some View {
+           VStack(alignment: .leading, spacing: 0) {
+               HStack {
+                   Image(systemName: "message.fill")
+                       .font(.system(size: 14))
+                       .foregroundColor(.huddleCoral)
+
+                   Text("Messages")
+                       .font(.system(size: 16, weight: .semibold, design: .rounded))
+                       .foregroundColor(.gray)
+
+                   Spacer()
+
+                   Button(action: {
+                       viewModel.showShoppingList = true
+                   }) {
+                       HStack(spacing: 6) {
+                           Image(systemName: "cart.fill")
+                               .font(.system(size: 14))
+                           Text("Shopping")
+                               .font(.system(size: 13, weight: .semibold, design: .rounded))
+                       }
+                       .foregroundColor(.huddleCoral)
+                       .padding(.horizontal, 12)
+                       .padding(.vertical, 6)
+                       .background(Color.white)
+                       .cornerRadius(16)
+                   }
+               }
+               .padding(.horizontal, 20)
+               .padding(.vertical, 12)
+
 
               ScrollView {
                   VStack(spacing: 12) {
-                      messageCard(sender: "John", message: "On my way home!", time: "2m ago")
-                      messageCard(sender: "Jane", message: "Picked up groceries", time: "15m ago")
-                      messageCard(sender: "Mike", message: "Don't forget the meeting tomorrow",
-  time: "1h ago")
-
-                      ForEach(0..<10, id: \.self) { i in
-                          messageCard(sender: "User \(i)", message: "Test message \(i)", time:
-  "\(i+4)h ago")
+                      if viewModel.messages.isEmpty {
+                          Text("No messages yet. Start chatting!")
+                              .font(.system(size: 14, design: .rounded))
+                              .foregroundColor(.gray)
+                              .padding()
+                      } else {
+                          ForEach(viewModel.messages) { message in
+                              messageCard(
+                                  sender: message.senderName,
+                                  message: message.content,
+                                  time: formatTime(message.createdAt)
+                              )
+                          }
                       }
-                  }
-                  .padding(.horizontal, 20)
-                  .padding(.bottom, 80)
-              }
+                  } }
+              .padding(.horizontal, 20)
+              .padding(.bottom, 80)
           }
       }
 
-      private func messageCard(sender: String, message: String, time: String) -> some View {
+     private func messageInputField() -> some View {
+           HStack(spacing: 12) {
+               ZStack(alignment: .leading) {
+                   if messageText.isEmpty {
+                       Text("Type a message...")
+                           .foregroundColor(.gray)
+                           .font(.system(size: 16, design: .rounded))
+                           .padding(.leading, 12)
+                   }
+                   TextField("", text: $messageText)
+                       .font(.system(size: 16, design: .rounded))
+                       .foregroundColor(.black)
+                       .padding(12)
+                       .focused($isMessageFieldFocused)
+               }
+               .background(Color.white)
+               .cornerRadius(20)
+
+               Button(action: {
+                   guard !messageText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                   viewModel.sendMessage(content: messageText)
+                   messageText = ""
+                   isMessageFieldFocused = false
+               }) {
+                   Image(systemName: "paperplane.fill")
+                       .font(.system(size: 16))
+                       .foregroundColor(.white)
+                       .frame(width: 40, height: 40)
+                       .background(Color.huddleCoral)
+                       .clipShape(Circle())
+               }
+           }
+           .padding(.horizontal, 20)
+           .padding(.vertical, 12)
+           .background(Color.huddleBackground)
+       }
+
+
+
+     private func formatTime(_ date: Date) -> String {
+         let now = Date()
+         let seconds = Int(now.timeIntervalSince(date))
+
+         if seconds < 60 {
+             return "just now"
+         } else if seconds < 3600 {
+             let minutes = seconds / 60
+             return "\(minutes)m ago"
+         } else if seconds < 86400 {
+             let hours = seconds / 3600
+             return "\(hours)h ago"
+         } else {
+             let days = seconds / 86400
+             return "\(days)d ago"
+         }
+     }
+
+     private func messageCard(sender: String, message: String, time: String) -> some View {
           VStack(alignment: .leading, spacing: 6) {
               HStack {
                   Text(sender)
@@ -210,89 +385,61 @@ import SwiftUI
               }
 
               Text(message)
-                  .font(.system(size: 14, design: .rounded))
-                  .foregroundColor(.primary)
+                  .font(.system(size: 15, design: .rounded))
+                  .foregroundColor(.black)  // ← Explicit BLACK for message text
+                  .fixedSize(horizontal: false, vertical: true)
           }
           .padding(12)
           .background(Color.white)
           .cornerRadius(12)
-      }
-
-      private var floatingButton: some View {
-          VStack {
-              Spacer()
-              HStack {
-                  Spacer()
-                  Button(action: {
-                      viewModel.showShoppingList = true
-                  }) {
-                      Image(systemName: "cart.fill")
-                          .font(.system(size: 24))
-                          .foregroundColor(.white)
-                          .frame(width: 60, height: 60)
-                          .background(Color.huddleCoral)
-                          .clipShape(Circle())
-                          .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
-                  }
-                  .padding(.trailing, 20)
-                  .padding(.bottom, 20)
-              }
-          }
-          .sheet(isPresented: $viewModel.showShoppingList) {
-              if let family = viewModel.family {
-                  ShoppingList(family: family)
-                      .environmentObject(authService)
-              }
-          }
+          .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
       }
 
      
 
-      private var shareSheet: some View {
-          if let family = viewModel.family {
-              return AnyView(
-                  VStack(spacing: 20) {
-                      Text("Share Family Code")
-                          .font(.system(size: 24, weight: .bold, design: .rounded))
+     private var shareSheet: some View {
+         if let family = viewModel.family {
+             return AnyView(
+                 VStack(spacing: 20) {
+                     Text("Share Family Code")
+                         .font(.system(size: 24, weight: .bold, design: .rounded))
 
-                      Text(family.code)
-                          .font(.system(size: 48, weight: .bold, design: .rounded))
-                          .foregroundColor(.huddleCoral)
-                          .tracking(4)
-                          .padding()
-                          .background(Color.white)
-                          .cornerRadius(16)
-                          .overlay(
-                              RoundedRectangle(cornerRadius: 16)
-                                  .stroke(Color.huddleCoral, lineWidth: 2)
-                          )
+                     Text(family.code)
+                         .font(.system(size: 48, weight: .bold, design: .rounded))
+                         .foregroundColor(.huddleCoral)
+                         .tracking(4)
+                         .padding()
+                         .background(Color.white)
+                         .cornerRadius(16)
+                         .overlay(
+                             RoundedRectangle(cornerRadius: 16)
+                                 .stroke(Color.huddleCoral, lineWidth: 2)
+                         )
 
-                      Text("Share this code with family members")
-                          .font(.system(size: 14, design: .rounded))
-                          .foregroundColor(.gray)
+                     Text("Share this code with family members")
+                         .font(.system(size: 14, design: .rounded))
+                         .foregroundColor(.gray)
 
-                      Button("Done") {
-                          viewModel.showShareSheet = false
-                      }
-                      .font(.system(size: 18, weight: .semibold, design: .rounded))
-                      .foregroundColor(.white)
-                      .frame(maxWidth: .infinity)
-                      .padding()
-                      .background(Color.huddleCoral)
-                      .cornerRadius(16)
-                      .padding(.horizontal)
-                  }
-                  .padding()
-                  .presentationDetents([.medium])
-              )
-          } else {
-              return AnyView(EmptyView())
-          }
-      }
-  }
+                     Button("Done") {
+                         viewModel.showShareSheet = false
+                     }
+                     .font(.system(size: 18, weight: .semibold, design: .rounded))
+                     .foregroundColor(.white)
+                     .frame(maxWidth: .infinity)
+                     .padding()
+                     .background(Color.huddleCoral)
+                     .cornerRadius(16)
+                     .padding(.horizontal)
+                 }
+                 .padding()
+                 .presentationDetents([.medium])
+             )
+         } else {
+             return AnyView(EmptyView())
+         }
+     }
+ }
 
-  #Preview {
-      FamilyFeedView(authService: AuthService())
-          
-  }
-
+ #Preview {
+     FamilyFeedView(authService: AuthService())
+ }

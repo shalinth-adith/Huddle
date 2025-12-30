@@ -63,7 +63,7 @@ struct ShoppingList: View {
              TextField("Add item...", text: $newItem)
                  .font(.system(size: 16, design: .rounded))
                  .padding(12)
-                 .background(Color.white)
+                 .background(Color.primary)
                  .cornerRadius(12)
                  .autocorrectionDisabled(true)
 
@@ -94,15 +94,16 @@ struct ShoppingList: View {
                              .foregroundColor(.gray)
                      }
                  } else {
-                     ForEach(viewModel.shoppingItems) { item in
-                         shoppingItemRow(item: item)
+                     ForEach(Array(viewModel.shoppingItems.prefix(3))) { item in
+                           shoppingItemRow(item: item)
+                       }
                      }
                  }
              }
              .padding(.horizontal, 20)
              .padding(.bottom, 20)
          }
-     }
+     
 
      private func shoppingItemRow(item: HuddleMessage) -> some View {
          HStack(spacing: 12) {
