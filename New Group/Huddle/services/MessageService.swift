@@ -112,6 +112,57 @@ class MessageService {
                      }
                  }
          }
+    func togglePin(
+          familyId: String,
+          messageId: String,
+          isPinned: Bool,
+          completion: @escaping (Result<Void, Error>) -> Void
+      ) {
+          db.collection("families")
+              .document(familyId)
+              .collection("messages")
+              .document(messageId)
+              .updateData(["isPinned": isPinned]) { error in
+                  if let error = error {
+                      completion(.failure(error))
+                  } else {
+                      completion(.success(()))
+                  }
+              }
+      }
+    func fetchPinnedMessages(
+        familyId: String,
+        completion: @escaping (Result<[HuddleMessage], Error>) -> Void
+    ) {
+        db.collection("families")
+            .document(familyId)
+            .collection("messages")
+            .whereField("isPinned", isEqualTo: true)
+            .whereField("type", isEqualTo: MessageType.text.rawValue)
+            .order(by: "createdAt", descending: false)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+
+                guard let documents = snapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+
+                do {
+                    let messages = try documents.compactMap { doc in
+                        try doc.data(as: HuddleMessage.self)
+                    }
+                    completion(.success(messages))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+    }
+
+
     func sendChatMessage(
          familyId: String,
          content: String,
@@ -156,11 +207,12 @@ class MessageService {
     ) -> ListenerRegistration {
         
         return db.collection("families")
-            .document(familyId)
-            .collection("messages")
-            .whereField("type", isEqualTo: MessageType.text.rawValue)
-            .order(by: "createdAt", descending: false)
-            .addSnapshotListener { snapshot, error in
+              .document(familyId)
+              .collection("messages")
+              .whereField("type", isEqualTo: MessageType.text.rawValue)
+              .order(by: "createdAt", descending: false)
+              .limit(to: 50) 
+              .addSnapshotListener { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return

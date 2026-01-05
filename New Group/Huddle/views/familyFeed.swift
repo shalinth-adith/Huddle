@@ -4,8 +4,11 @@ import SwiftUI
      @EnvironmentObject var authService: AuthService
      @StateObject private var viewModel: FamilyFeedViewModel
      @State private var messageText: String = ""
+
      
      @FocusState private var isMessageFieldFocused: Bool
+     @State private var isChatExpanded = false
+
 
      init(authService: AuthService) {
          _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
@@ -16,23 +19,27 @@ import SwiftUI
      }
 
      var body: some View {
-           ZStack {
+         ZStack {
                Color.huddleBackground.ignoresSafeArea()
 
                if viewModel.isLoading {
                    ProgressView()
                } else if let family = viewModel.family {
-                   feedContent(family: family)
+                   if isChatExpanded {
+                       expandedChatView(family: family)
+                   } else {
+                       feedContent(family: family)  
+                   }
                } else {
                    Text("Error loading family")
                }
 
-               
                VStack {
                    Spacer()
                    messageInputField()
                }
            }
+
            .onTapGesture {
                isMessageFieldFocused = false
            }
@@ -40,6 +47,8 @@ import SwiftUI
                viewModel.loadFamily()
                viewModel.loadMessages()
                viewModel.loadShoppingItems()
+               viewModel.loadPinnedMessages()
+
            }
            .onDisappear {
                viewModel.cleanup()
@@ -67,6 +76,60 @@ import SwiftUI
              messagesSection()
          }
      }
+     private func expandedChatView(family: Family) -> some View {
+               VStack(spacing: 0) {
+                   VStack(spacing: 8) {
+                       RoundedRectangle(cornerRadius: 3)
+                           .fill(Color.gray.opacity(0.5))
+                           .frame(width: 40, height: 5)
+                           .padding(.top, 12)
+
+                       HStack {
+                           Image(systemName: "message.fill")
+                               .font(.system(size: 18))
+                               .foregroundColor(.huddleCoral)
+
+                           Text("Messages")
+                               .font(.system(size: 20, weight: .semibold, design: .rounded))
+                               .foregroundColor(.black)
+
+                           Spacer()
+
+                           Button(action: {
+                               withAnimation(.spring()) {
+                                   isChatExpanded = false
+                               }
+                           }) {
+                               Image(systemName: "xmark.circle.fill")
+                                   .font(.system(size: 24))
+                                   .foregroundColor(.gray)
+                           }
+                       }
+                       .padding(.horizontal, 20)
+                       .padding(.vertical, 12)
+                   }
+                   .background(Color.huddleBackground)
+
+                   ScrollView {
+                       VStack(spacing: 12) {
+                           if viewModel.messages.isEmpty {
+                               Text("No messages yet. Start chatting!")
+                                   .font(.system(size: 14, design: .rounded))
+                                   .foregroundColor(.gray)
+                                   .padding()
+                           } else {
+                               ForEach(viewModel.messages) { message in
+                                   messageCard(message: message)
+
+                               }
+                           }
+                       }
+                       .padding(.horizontal, 20)
+                       .padding(.bottom, 80)
+                   }
+               }
+           }
+
 
      private func headerSection(family: Family) -> some View {
          HStack {
@@ -111,42 +174,49 @@ import SwiftUI
      }
 
      private func membersSection(family: Family) -> some View {
-           HStack(spacing: 12) {
-               // Member avatars (first 3)
-               HStack(spacing: -8) {
-                   ForEach(family.members.prefix(3)) { member in
-                       Circle()
-                           .fill(Color.huddleCoral.opacity(0.2))
-                           .frame(width: 36, height: 36)
-                           .overlay(
-                               Text(getInitials(from: member.displayName))
-                                   .font(.system(size: 12, weight: .bold, design: .rounded))
-                                   .foregroundColor(.huddleCoral)
-                           )
-                           .overlay(
-                               Circle()
-                                   .stroke(Color.white, lineWidth: 2)
-                           )
-                   }
-               }
+          // Get unique members by ID
+          let uniqueMembers = Array(Dictionary(grouping: family.members, by: { $0.id })
+              .compactMap { $0.value.first })
 
-               Text("\(family.members.count) members")
-                   .font(.system(size: 14, weight: .medium, design: .rounded))
-                   .foregroundColor(.gray)
+          return HStack(spacing: 12) {
+              // Member avatars (first 3 unique members)
+              HStack(spacing: -8) {
+                  ForEach(uniqueMembers.prefix(3)) { member in
+                      Circle()
+                          .fill(Color.huddleCoral.opacity(0.2))
+                          .frame(width: 36, height: 36)
+                          .overlay(
+                              Text(getInitials(from: member.displayName))
+                                  .font(.system(size: 12, weight: .bold, design: .rounded))
+                                  .foregroundColor(.huddleCoral)
+                          )
+                          .overlay(
+                              Circle()
+                                  .stroke(Color.white, lineWidth: 2)
+                          )
+                  }
+              }
 
-               Spacer()
+              Text("\(uniqueMembers.count) members")
+                  .font(.system(size: 14, weight: .medium, design: .rounded))
+                  .foregroundColor(.gray)
 
-               Image(systemName: "chevron.right")
-                   .font(.system(size: 12))
-                   .foregroundColor(.gray)
-           }
-           .padding(.horizontal, 20)
-           .padding(.vertical, 12)
-           .background(Color.white)
-           .cornerRadius(12)
-           .padding(.horizontal, 20)
-           .padding(.bottom, 16)
-       }
+              Spacer()
+
+              Image(systemName: "chevron.right")
+                  .font(.system(size: 12))
+                  .foregroundColor(.gray)
+          }
+          .padding(.horizontal, 20)
+          .padding(.vertical, 12)
+          .background(Color.white)
+          .cornerRadius(12)
+          .padding(.horizontal, 20)
+          .padding(.bottom, 16)
+      }
+
+         
+
      private func shoppingListPreview() -> some View {
            let items = viewModel.shoppingItems
            let firstThree = Array(items.prefix(3))
@@ -223,95 +293,112 @@ import SwiftUI
      }
 
      private func pinnedSection() -> some View {
-         VStack(alignment: .leading, spacing: 12) {
+          VStack(alignment: .leading, spacing: 12) {
+              // Only show if there are pinned messages
+              if !viewModel.pinnedMessages.isEmpty {
+                  HStack {
+                      Image(systemName: "pin.fill")
+                          .font(.system(size: 14))
+                          .foregroundColor(.huddleCoral)
+
+                      Text("Pinned")
+                          .font(.system(size: 16, weight: .semibold, design: .rounded))
+                          .foregroundColor(.gray)
+
+                      Spacer()
+                  }
+                  .padding(.horizontal, 20)
+
+                  VStack(spacing: 8) {
+                      ForEach(viewModel.pinnedMessages) { message in
+                          pinnedItemCard(message: message)
+                      }
+                  }
+                  .padding(.horizontal, 20)
+                  .padding(.bottom, 16)
+              }
+          }
+      }
+
+
+     private func pinnedItemCard(message: HuddleMessage) -> some View {
+           HStack {
+               Text(message.content)
+                   .font(.system(size: 14, weight: .medium, design: .rounded))
+                   .foregroundColor(.black)
+               Spacer()
+           }
+           .padding(12)
+           .background(Color.huddlePeach.opacity(0.3))
+           .cornerRadius(12)
+           .contextMenu {
+               Button(action: {
+                   viewModel.togglePinMessage(message)
+               }) {
+                   Label("Unpin Message", systemImage: "pin.slash")
+               }
+           }
+       }
+
+
+     
+     private func messagesSection() -> some View {
+         VStack(alignment: .leading, spacing: 0) {
              HStack {
-                 Image(systemName: "pin.fill")
+                 Image(systemName: "message.fill")
                      .font(.system(size: 14))
                      .foregroundColor(.huddleCoral)
 
-                 Text("Pinned")
+                 Text("Messages")
                      .font(.system(size: 16, weight: .semibold, design: .rounded))
                      .foregroundColor(.gray)
 
                  Spacer()
+
+                 Button(action: {
+                     viewModel.showShoppingList = true
+                 }) {
+                     HStack(spacing: 6) {
+                         Image(systemName: "cart.fill")
+                             .font(.system(size: 14))
+                         Text("Shopping")
+                             .font(.system(size: 13, weight: .semibold, design: .rounded))
+                     }
+                     .foregroundColor(.huddleCoral)
+                     .padding(.horizontal, 12)
+                     .padding(.vertical, 6)
+                     .background(Color.white)
+                     .cornerRadius(16)
+                 }
              }
              .padding(.horizontal, 20)
+             .padding(.vertical, 12)
 
-             VStack(spacing: 8) {
-                 pinnedItemCard(text: "Don't forget to pick up milk!")
-                 pinnedItemCard(text: "Family dinner on Sunday at 6 PM")
+             ScrollView {
+                 VStack(spacing: 12) {
+                     if viewModel.messages.isEmpty {
+                         Text("No messages yet. Start chatting!")
+                             .font(.system(size: 14, design: .rounded))
+                             .foregroundColor(.gray)
+                             .padding()
+                     } else {
+                         ForEach(viewModel.messages) { message in
+                             messageCard(message: message)  // ← Changed this line
+                         }
+                     }
+                 }
              }
              .padding(.horizontal, 20)
+             .padding(.bottom, 80)
          }
-         .padding(.bottom, 16)
+         .onTapGesture {
+             withAnimation(.spring()) {
+                 isChatExpanded = true
+             }
+         }
      }
 
-     private func pinnedItemCard(text: String) -> some View {
-         HStack {
-             Text(text)
-                 .font(.system(size: 14, weight: .medium, design: .rounded))
-                 .foregroundColor(.black)
-             Spacer()
-         }
-         .padding(12)
-         .background(Color.huddlePeach.opacity(0.3))
-         .cornerRadius(12)
-     }
 
-     private func messagesSection() -> some View {
-           VStack(alignment: .leading, spacing: 0) {
-               HStack {
-                   Image(systemName: "message.fill")
-                       .font(.system(size: 14))
-                       .foregroundColor(.huddleCoral)
-
-                   Text("Messages")
-                       .font(.system(size: 16, weight: .semibold, design: .rounded))
-                       .foregroundColor(.gray)
-
-                   Spacer()
-
-                   Button(action: {
-                       viewModel.showShoppingList = true
-                   }) {
-                       HStack(spacing: 6) {
-                           Image(systemName: "cart.fill")
-                               .font(.system(size: 14))
-                           Text("Shopping")
-                               .font(.system(size: 13, weight: .semibold, design: .rounded))
-                       }
-                       .foregroundColor(.huddleCoral)
-                       .padding(.horizontal, 12)
-                       .padding(.vertical, 6)
-                       .background(Color.white)
-                       .cornerRadius(16)
-                   }
-               }
-               .padding(.horizontal, 20)
-               .padding(.vertical, 12)
-
-
-              ScrollView {
-                  VStack(spacing: 12) {
-                      if viewModel.messages.isEmpty {
-                          Text("No messages yet. Start chatting!")
-                              .font(.system(size: 14, design: .rounded))
-                              .foregroundColor(.gray)
-                              .padding()
-                      } else {
-                          ForEach(viewModel.messages) { message in
-                              messageCard(
-                                  sender: message.senderName,
-                                  message: message.content,
-                                  time: formatTime(message.createdAt)
-                              )
-                          }
-                      }
-                  } }
-              .padding(.horizontal, 20)
-              .padding(.bottom, 80)
-          }
-      }
 
      private func messageInputField() -> some View {
            HStack(spacing: 12) {
@@ -370,30 +457,41 @@ import SwiftUI
          }
      }
 
-     private func messageCard(sender: String, message: String, time: String) -> some View {
+     private func messageCard(message: HuddleMessage) -> some View {
           VStack(alignment: .leading, spacing: 6) {
               HStack {
-                  Text(sender)
+                  Text(message.senderName)
                       .font(.system(size: 14, weight: .semibold, design: .rounded))
                       .foregroundColor(.huddleCoral)
 
                   Spacer()
 
-                  Text(time)
+                  Text(formatTime(message.createdAt))
                       .font(.system(size: 12, design: .rounded))
                       .foregroundColor(.gray)
               }
 
-              Text(message)
+              Text(message.content)
                   .font(.system(size: 15, design: .rounded))
-                  .foregroundColor(.black)  // ← Explicit BLACK for message text
+                  .foregroundColor(.black)
                   .fixedSize(horizontal: false, vertical: true)
           }
           .padding(12)
           .background(Color.white)
           .cornerRadius(12)
           .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+          .contextMenu {
+              Button(action: {
+                  viewModel.togglePinMessage(message)
+              }) {
+                  Label(
+                      message.isPinned ? "Unpin Message" : "Pin Message",
+                      systemImage: message.isPinned ? "pin.slash" : "pin.fill"
+                  )
+              }
+          }
       }
+
 
      
 
