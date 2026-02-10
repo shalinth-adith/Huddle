@@ -56,12 +56,14 @@ import SwiftUI
            .sheet(isPresented: $viewModel.showShareSheet) {
                shareSheet
            }
-           .sheet(isPresented: $viewModel.showShoppingList) {
-               if let family = viewModel.family {
-                   ShoppingList(family: family)
-                       .environmentObject(authService)
-               }
-           }
+           .sheet(isPresented: $viewModel.showShoppingList, onDismiss: {
+                viewModel.loadShoppingItems()
+            }) {
+                if let family = viewModel.family {
+                    ShoppingList(family: family)
+                        .environmentObject(authService)
+                }
+            }                           
        }
 
 

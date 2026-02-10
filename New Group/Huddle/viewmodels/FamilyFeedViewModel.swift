@@ -74,7 +74,8 @@
           messageService.fetchShoppingItems(familyId: familyId) { result in
               switch result {
               case .success(let items):
-                  self.shoppingItems = items
+                    self.shoppingItems = items
+                    self.saveWidgetShoppingItems(items)
               case .failure(_):
                   break
               }
@@ -128,7 +129,8 @@
           messageService.fetchPinnedMessages(familyId: familyId) { result in
               switch result {
               case .success(let messages):
-                  self.pinnedMessages = messages
+                    self.pinnedMessages = messages
+                    self.saveWidgetPinnedMessages(messages)
               case .failure(_):
                   break
               }
@@ -165,4 +167,20 @@
           messageListener?.remove()
           shoppingListener?.remove()
       }
+      private func saveWidgetPinnedMessages(_ messages: [HuddleMessage]) {
+            let widgetMessages = messages.map { message in
+                SharedDataManager.WidgetPinnedMessage(
+                    text: message.content,
+                    senderName: message.senderName ?? "Unknown"
+                )
+            }
+            SharedDataManager.savePinnedMessages(widgetMessages)
+        }
+                                                                                                             
+        private func saveWidgetShoppingItems(_ items: [HuddleMessage]) {
+            let widgetItems = items.map { item in
+                SharedDataManager.WidgetShoppingItem(text: item.content)
+            }
+            SharedDataManager.saveShoppingItems(widgetItems)
+        }                             
   }

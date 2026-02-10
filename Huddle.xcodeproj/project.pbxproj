@@ -79,11 +79,21 @@
 			);
 			target = F0B3E69F2ECD871800115C51 /* Huddle */;
 		};
+		F0D5A5A92F3B7CDC007E64CF /* Exceptions for "Huddle" folder in "HuddleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				models/Extensions.swift,
+			);
+			target = F0D5A5882F3B4C6E007E64CF /* HuddleWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F0B3E6A22ECD871800115C51 /* Huddle */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F0D5A5A92F3B7CDC007E64CF /* Exceptions for "Huddle" folder in "HuddleWidgetExtension" target */,
+			);
 			path = Huddle;
 			sourceTree = "<group>";
 		};
