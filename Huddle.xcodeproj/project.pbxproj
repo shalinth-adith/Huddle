@@ -10,6 +10,9 @@
 		F0B3E6D62ECD97A500115C51 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D52ECD97A500115C51 /* FirebaseAuth */; };
 		F0B3E6D82ECD97B300115C51 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D72ECD97B300115C51 /* FirebaseFirestore */; };
 		F0B3E6DA2ECD97BA00115C51 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D92ECD97BA00115C51 /* FirebaseStorage */; };
+		F0D5A58B2F3B4C6E007E64CF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0D5A58A2F3B4C6E007E64CF /* WidgetKit.framework */; };
+		F0D5A58D2F3B4C6E007E64CF /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0D5A58C2F3B4C6E007E64CF /* SwiftUI.framework */; };
+		F0D5A59A2F3B4C6E007E64CF /* HuddleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -27,13 +30,56 @@
 			remoteGlobalIDString = F0B3E69F2ECD871800115C51;
 			remoteInfo = Huddle;
 		};
+		F0D5A5982F3B4C6E007E64CF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F0B3E6982ECD871800115C51 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F0D5A5882F3B4C6E007E64CF;
+			remoteInfo = HuddleWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F0D5A59B2F3B4C6E007E64CF /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F0D5A59A2F3B4C6E007E64CF /* HuddleWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F0B3E6A02ECD871800115C51 /* Huddle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Huddle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6AD2ECD871900115C51 /* HuddleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6B72ECD871900115C51 /* HuddleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HuddleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0D5A58A2F3B4C6E007E64CF /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		F0D5A58C2F3B4C6E007E64CF /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		F0D5A5A02F3B4FD9007E64CF /* Huddle.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Huddle.entitlements; sourceTree = "<group>"; };
+		F0D5A5A12F3B5005007E64CF /* HuddleWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HuddleWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F0D5A59E2F3B4C6E007E64CF /* Exceptions for "HuddleWidget" folder in "HuddleWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = F0D5A5882F3B4C6E007E64CF /* HuddleWidgetExtension */;
+		};
+		F0D5A5A72F3B555D007E64CF /* Exceptions for "HuddleWidget" folder in "Huddle" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				SharedDataManager.swift,
+			);
+			target = F0B3E69F2ECD871800115C51 /* Huddle */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F0B3E6A22ECD871800115C51 /* Huddle */ = {
@@ -49,6 +95,15 @@
 		F0B3E6BA2ECD871900115C51 /* HuddleUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = HuddleUITests;
+			sourceTree = "<group>";
+		};
+		F0D5A58E2F3B4C6E007E64CF /* HuddleWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F0D5A5A72F3B555D007E64CF /* Exceptions for "HuddleWidget" folder in "Huddle" target */,
+				F0D5A59E2F3B4C6E007E64CF /* Exceptions for "HuddleWidget" folder in "HuddleWidgetExtension" target */,
+			);
+			path = HuddleWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -78,15 +133,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0D5A5862F3B4C6E007E64CF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F0D5A58D2F3B4C6E007E64CF /* SwiftUI.framework in Frameworks */,
+				F0D5A58B2F3B4C6E007E64CF /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		F0B3E6972ECD871800115C51 = {
 			isa = PBXGroup;
 			children = (
+				F0D5A5A12F3B5005007E64CF /* HuddleWidgetExtension.entitlements */,
+				F0D5A5A02F3B4FD9007E64CF /* Huddle.entitlements */,
 				F0B3E6CD2ECD8FD300115C51 /* New Group */,
 				F0B3E6B02ECD871900115C51 /* HuddleTests */,
 				F0B3E6BA2ECD871900115C51 /* HuddleUITests */,
+				F0D5A58E2F3B4C6E007E64CF /* HuddleWidget */,
 				F0B3E6D42ECD97A500115C51 /* Frameworks */,
 				F0B3E6A12ECD871800115C51 /* Products */,
 			);
@@ -98,6 +165,7 @@
 				F0B3E6A02ECD871800115C51 /* Huddle.app */,
 				F0B3E6AD2ECD871900115C51 /* HuddleTests.xctest */,
 				F0B3E6B72ECD871900115C51 /* HuddleUITests.xctest */,
+				F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -113,6 +181,8 @@
 		F0B3E6D42ECD97A500115C51 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				F0D5A58A2F3B4C6E007E64CF /* WidgetKit.framework */,
+				F0D5A58C2F3B4C6E007E64CF /* SwiftUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -127,10 +197,12 @@
 				F0B3E69C2ECD871800115C51 /* Sources */,
 				F0B3E69D2ECD871800115C51 /* Frameworks */,
 				F0B3E69E2ECD871800115C51 /* Resources */,
+				F0D5A59B2F3B4C6E007E64CF /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F0D5A5992F3B4C6E007E64CF /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				F0B3E6A22ECD871800115C51 /* Huddle */,
@@ -191,6 +263,28 @@
 			productReference = F0B3E6B72ECD871900115C51 /* HuddleUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		F0D5A5882F3B4C6E007E64CF /* HuddleWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F0D5A59F2F3B4C6E007E64CF /* Build configuration list for PBXNativeTarget "HuddleWidgetExtension" */;
+			buildPhases = (
+				F0D5A5852F3B4C6E007E64CF /* Sources */,
+				F0D5A5862F3B4C6E007E64CF /* Frameworks */,
+				F0D5A5872F3B4C6E007E64CF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F0D5A58E2F3B4C6E007E64CF /* HuddleWidget */,
+			);
+			name = HuddleWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = HuddleWidgetExtension;
+			productReference = F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -211,6 +305,9 @@
 					F0B3E6B62ECD871900115C51 = {
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = F0B3E69F2ECD871800115C51;
+					};
+					F0D5A5882F3B4C6E007E64CF = {
+						CreatedOnToolsVersion = 26.0.1;
 					};
 				};
 			};
@@ -234,6 +331,7 @@
 				F0B3E69F2ECD871800115C51 /* Huddle */,
 				F0B3E6AC2ECD871900115C51 /* HuddleTests */,
 				F0B3E6B62ECD871900115C51 /* HuddleUITests */,
+				F0D5A5882F3B4C6E007E64CF /* HuddleWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -254,6 +352,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		F0B3E6B52ECD871900115C51 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0D5A5872F3B4C6E007E64CF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -284,6 +389,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F0D5A5852F3B4C6E007E64CF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -296,6 +408,11 @@
 			isa = PBXTargetDependency;
 			target = F0B3E69F2ECD871800115C51 /* Huddle */;
 			targetProxy = F0B3E6B82ECD871900115C51 /* PBXContainerItemProxy */;
+		};
+		F0D5A5992F3B4C6E007E64CF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F0D5A5882F3B4C6E007E64CF /* HuddleWidgetExtension */;
+			targetProxy = F0D5A5982F3B4C6E007E64CF /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -424,6 +541,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Huddle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 649T62WKAQ;
@@ -456,6 +574,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Huddle.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 649T62WKAQ;
@@ -563,6 +682,68 @@
 			};
 			name = Release;
 		};
+		F0D5A59C2F3B4C6E007E64CF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = HuddleWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 649T62WKAQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuddleWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuddleWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.adithyan.shalinth.Huddle.HuddleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F0D5A59D2F3B4C6E007E64CF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = HuddleWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 649T62WKAQ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = HuddleWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = HuddleWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.adithyan.shalinth.Huddle.HuddleWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -598,6 +779,15 @@
 			buildConfigurations = (
 				F0B3E6C82ECD871900115C51 /* Debug */,
 				F0B3E6C92ECD871900115C51 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F0D5A59F2F3B4C6E007E64CF /* Build configuration list for PBXNativeTarget "HuddleWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0D5A59C2F3B4C6E007E64CF /* Debug */,
+				F0D5A59D2F3B4C6E007E64CF /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
