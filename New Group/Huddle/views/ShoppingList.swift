@@ -62,8 +62,9 @@ struct ShoppingList: View {
          HStack(spacing: 12) {
              TextField("Add item...", text: $newItem)
                  .font(.system(size: 16, design: .rounded))
+                 .foregroundColor(.black)
                  .padding(12)
-                 .background(Color.primary)
+                 .background(Color.white)  // CHANGED from Color.primary
                  .cornerRadius(12)
                  .autocorrectionDisabled(true)
 
@@ -118,7 +119,7 @@ struct ShoppingList: View {
              VStack(alignment: .leading, spacing: 4) {
                  Text(item.content)
                      .font(.system(size: 16, design: .rounded))
-                     .foregroundColor(item.isCompleted ? .gray : .primary)
+                     .foregroundColor(item.isCompleted ? .gray : .black)
                      .strikethrough(item.isCompleted)
 
                  Text("Added by \(item.senderName)")

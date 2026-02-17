@@ -162,6 +162,23 @@
               }
           }
       }
+      func deleteMessage(_ message: HuddleMessage) {
+            guard let familyId = authService.currentUser?.currentFamilyId,
+                  let messageId = message.id else { return }
+                                                                                                             
+            messageService.deleteMessage(
+                familyId: familyId,
+                messageId: messageId
+            ) { result in
+                switch result {
+                case .success:
+                    self.loadMessages()
+                    self.loadPinnedMessages()
+                case .failure(_):
+                    break
+                }
+            }
+        }               
 
       func cleanup() {
           messageListener?.remove()

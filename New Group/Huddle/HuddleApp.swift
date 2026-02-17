@@ -6,23 +6,38 @@
 //
 
 import SwiftUI
- import FirebaseCore
- import FirebaseAuth
-
+import FirebaseCore
+import FirebaseAuth
+                                                                                                      
  @main
  struct HuddleApp: App {
-
+                                                                                                      
      @StateObject private var authService = AuthService()
-
+     @State private var openToShopping = false
+                                                                                                      
      init() {
          FirebaseApp.configure()
      }
-
+                                                                                                      
      var body: some Scene {
          WindowGroup {
-             RootView(authService: authService)
-                   .environmentObject(authService)
+             RootView(authService: authService, openToShopping: $openToShopping)
+                 .environmentObject(authService)
+                 .onOpenURL { url in
+                     handleDeepLink(url)
+                 }
+         }
+     }
+                                                                                                      
+     private func handleDeepLink(_ url: URL) {
+         guard url.scheme == "huddle" else { return }
+                                                                                                      
+         switch url.host {
+         case "shopping":
+             openToShopping = true
+         default:
+             // Just open app (huddle://open)
+             break
          }
      }
  }
-
