@@ -115,6 +115,7 @@ struct FamilyFeedView: View {
                             .font(.system(size: 24))
                             .foregroundColor(.gray)
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -170,6 +171,8 @@ struct FamilyFeedView: View {
                 .background(Color.white)
                 .cornerRadius(20)
             }
+            .buttonStyle(.plain)
+
             
             Button(action: {
                 authService.signOut()
@@ -178,6 +181,8 @@ struct FamilyFeedView: View {
                     .font(.system(size: 16))
                     .foregroundColor(.red)
             }
+            .buttonStyle(.plain)
+
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -305,7 +310,6 @@ struct FamilyFeedView: View {
     
     private func pinnedSection() -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Only show if there are pinned messages
             if !viewModel.pinnedMessages.isEmpty {
                 HStack {
                     Image(systemName: "pin.fill")
@@ -381,6 +385,8 @@ struct FamilyFeedView: View {
                     .background(Color.white)
                     .cornerRadius(16)
                 }
+                .buttonStyle(.plain)  
+
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -442,6 +448,8 @@ struct FamilyFeedView: View {
                     .background(Color.huddleCoral)
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
+
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

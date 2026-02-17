@@ -86,6 +86,8 @@ struct CreateJoinFamily: View {
                                   .padding(.horizontal, 40)
                                   .padding(.bottom, 50)
                               }
+                                .buttonStyle(.plain)
+
                           }
                             .sheet(isPresented: $showCreateFamily) {
                                     CreateFamily()

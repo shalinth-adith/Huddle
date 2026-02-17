@@ -45,6 +45,8 @@ struct CreateFamily: View {
                         .font(.system(size: 28))
                         .foregroundStyle(Color(.gray))
                 }
+                .buttonStyle(.plain) 
+
                 Spacer()
             }
             .padding(.horizontal,20)
@@ -66,7 +68,9 @@ struct CreateFamily: View {
             
             TextField("Family Name : ", text: $viewModel.familyName)
                 .font(.system(size: 18,design: .rounded))
-                .autocorrectionDisabled(true)  
+                .foregroundColor(.black)
+
+                .autocorrectionDisabled(true)
                 .padding()
                 .background(Color.white)
                 .cornerRadius(12)
@@ -102,6 +106,8 @@ struct CreateFamily: View {
             .cornerRadius(16)
             .padding(.horizontal,40)
             .padding(.bottom,50)
+            .buttonStyle(.plain)  
+
             .disabled(viewModel.isCreateButtonDisabled)
 
             

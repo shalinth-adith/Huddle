@@ -43,6 +43,8 @@ struct JoinFamily: View {
                         .font(.system(size: 28))
                         .foregroundStyle(Color.gray)
                 }
+                .buttonStyle(.plain)  
+
                 Spacer()
             }
             .padding(.horizontal,20)
@@ -63,6 +65,8 @@ struct JoinFamily: View {
             
             TextField("H-000000", text: $viewModel.familyCode)
                 .font(.system(size: 18,design: .rounded))
+                .foregroundColor(.black)
+
                 .padding()
                 .background(Color.white)
                 .cornerRadius(12)
@@ -103,6 +107,8 @@ struct JoinFamily: View {
               .padding(.horizontal, 40)
               .padding(.bottom, 50)
               .disabled(!viewModel.isValidCode || viewModel.isLoading)
+              .buttonStyle(.plain)  // ADD THIS
+
         }
     }
     
@@ -145,6 +151,8 @@ struct JoinFamily: View {
             .cornerRadius(16)
             .padding(.horizontal, 40)
             .padding(.bottom, 50)
+            .buttonStyle(.plain)
+
         }
     }
 

@@ -36,6 +36,7 @@ struct NameInputView: View {
                 
                 TextField("Enter Your Name", text: $name)
                     .font(Font.system(size: 18,design: .rounded))
+                    .foregroundColor(.black)
                     .autocorrectionDisabled(true)
                     .padding()
                     .background(Color.white)
@@ -62,6 +63,9 @@ struct NameInputView: View {
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.white)
                     }
+
+                    
+
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
@@ -70,6 +74,8 @@ struct NameInputView: View {
                 .padding(.horizontal,40)
                 .padding(.bottom,50)
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isLoading)
+                .buttonStyle(.plain)  
+
                     
                 
             }

@@ -52,6 +52,8 @@ struct ShoppingList: View {
                      .font(.system(size: 28))
                      .foregroundColor(.gray)
              }
+             .buttonStyle(.plain) 
+
          }
          .padding(.horizontal, 20)
          .padding(.top, 20)
@@ -68,14 +70,16 @@ struct ShoppingList: View {
                  .cornerRadius(12)
                  .autocorrectionDisabled(true)
 
-             Button(action: addItem) {
-                 Image(systemName: "plus.circle.fill")
-                     .font(.system(size: 32))
-                     .foregroundColor(newItem.trimmingCharacters(in: .whitespaces).isEmpty ?
-                         .gray : .huddleCoral)
-             }
-             .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
-         }
+             
+                Button(action: addItem) {
+                Image(systemName: "plus.circle.fill")
+                .font(.system(size: 32))
+                .foregroundColor(newItem.trimmingCharacters(in: .whitespaces).isEmpty ?
+                .gray : .huddleCoral)
+                }
+                .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
+                .buttonStyle(.plain)
+                }
          .padding(.horizontal, 20)
          .padding(.bottom, 16)
      }
