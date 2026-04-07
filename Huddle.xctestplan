@@ -1,0 +1,38 @@
+{
+  "configurations" : [
+    {
+      "id" : "B1B014DA-32D3-4971-87CF-4F6641EB5EA1",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Huddle.xcodeproj",
+      "identifier" : "F0B3E69F2ECD871800115C51",
+      "name" : "Huddle"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Huddle.xcodeproj",
+        "identifier" : "F0B3E6AC2ECD871900115C51",
+        "name" : "HuddleTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:Huddle.xcodeproj",
+        "identifier" : "F0B3E6B62ECD871900115C51",
+        "name" : "HuddleUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

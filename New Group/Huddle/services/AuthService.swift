@@ -89,21 +89,33 @@ import Combine
 
       // Fetch user profile from Firestore
       func fetchUserProfile(userId: String) {
-          db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
+          // Read from cache first for instant UI, then refresh from server
+          db.collection("users").document(userId).getDocument(source: .cache) { [weak self] snapshot, _ in
+              if let snapshot = snapshot, snapshot.exists, let data = snapshot.data() {
+                  do {
+                      let user = try Firestore.Decoder().decode(AppUser.self, from: data)
+                      DispatchQueue.main.async {
+                          self?.currentUser = user
+                          self?.isAuthenticated = true
+                      }
+                  } catch {}
+              }
+          }
+          db.collection("users").document(userId).getDocument(source: .server) { [weak self] snapshot, error in
               if let error = error {
                   print("Error fetching user profile: \(error.localizedDescription)")
                   return
               }
-
               guard let data = snapshot?.data() else {
                   print("User profile not found")
                   return
               }
-
               do {
                   let user = try Firestore.Decoder().decode(AppUser.self, from: data)
-                  self?.currentUser = user
-                  self?.isAuthenticated = true
+                  DispatchQueue.main.async {
+                      self?.currentUser = user
+                      self?.isAuthenticated = true
+                  }
               } catch {
                   print("Error decoding user: \(error.localizedDescription)")
               }

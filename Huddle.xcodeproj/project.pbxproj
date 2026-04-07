@@ -54,6 +54,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F021C2E62F857EB200B7A0A0 /* Huddle.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Huddle.xctestplan; sourceTree = "<group>"; };
 		F0B3E6A02ECD871800115C51 /* Huddle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Huddle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6AD2ECD871900115C51 /* HuddleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6B72ECD871900115C51 /* HuddleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -158,6 +159,7 @@
 		F0B3E6972ECD871800115C51 = {
 			isa = PBXGroup;
 			children = (
+				F021C2E62F857EB200B7A0A0 /* Huddle.xctestplan */,
 				F0D5A5A12F3B5005007E64CF /* HuddleWidgetExtension.entitlements */,
 				F0D5A5A02F3B4FD9007E64CF /* Huddle.entitlements */,
 				F0B3E6CD2ECD8FD300115C51 /* New Group */,
