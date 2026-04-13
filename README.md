@@ -4,20 +4,19 @@ A family communication iOS app built with SwiftUI and Firebase. Huddle lets fami
 
 
 ---
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 59 55 PM" src="https://github.com/user-attachments/assets/63ed8055-b4da-4042-9eb1-17912a1cd9ae" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 56 32 PM" src="https://github.com/user-attachments/assets/2f8bac06-6e9a-4d45-8ded-c4d9b2ba318e" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 56 15 PM" src="https://github.com/user-attachments/assets/5ed4a2f0-baf8-49db-ad09-bc2b203b4bcf" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 54 41 PM" src="https://github.com/user-attachments/assets/a89304b7-2a54-435f-9ff1-aa815fb4d106" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 54 19 PM" src="https://github.com/user-attachments/assets/b2f73763-ea12-4ca7-9155-ff04e1ffd500" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 53 54 PM" src="https://github.com/user-attachments/assets/79e8f60b-21c5-4832-a43a-030cee7b279d" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 53 48 PM" src="https://github.com/user-attachments/assets/6e107866-4c00-4cf1-b9a1-e021b7ae5f51" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 52 29 PM" src="https://github.com/user-attachments/assets/7c650211-6c75-492f-8bce-2a594692ad5d" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 51 17 PM" src="https://github.com/user-attachments/assets/6d627051-6a3b-4dcf-b31c-64f0642e93f9" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 51 08 PM" src="https://github.com/user-attachments/assets/8b5477ea-fb78-4c86-a919-ccc4826b7fbf" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 50 53 PM" src="https://github.com/user-attachments/assets/43ca4167-b734-4f62-8934-79c9f6b5b60b" />
-<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 50 24 PM" src="https://github.com/user-attachments/assets/029a3761-aa4e-46ec-82a0-3e58eca4daf2" />
 <img width="401" height="866" alt="Screenshot 2026-04-13 at 10 49 31 PM" src="https://github.com/user-attachments/assets/eded044a-2f0b-42e7-830b-3921591914f7" />
-
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 50 24 PM" src="https://github.com/user-attachments/assets/029a3761-aa4e-46ec-82a0-3e58eca4daf2" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 50 53 PM" src="https://github.com/user-attachments/assets/43ca4167-b734-4f62-8934-79c9f6b5b60b" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 51 08 PM" src="https://github.com/user-attachments/assets/8b5477ea-fb78-4c86-a919-ccc4826b7fbf" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 51 17 PM" src="https://github.com/user-attachments/assets/6d627051-6a3b-4dcf-b31c-64f0642e93f9" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 52 29 PM" src="https://github.com/user-attachments/assets/7c650211-6c75-492f-8bce-2a594692ad5d" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 53 48 PM" src="https://github.com/user-attachments/assets/6e107866-4c00-4cf1-b9a1-e021b7ae5f51" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 53 54 PM" src="https://github.com/user-attachments/assets/79e8f60b-21c5-4832-a43a-030cee7b279d" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 54 19 PM" src="https://github.com/user-attachments/assets/b2f73763-ea12-4ca7-9155-ff04e1ffd500" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 54 41 PM" src="https://github.com/user-attachments/assets/a89304b7-2a54-435f-9ff1-aa815fb4d106" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 56 15 PM" src="https://github.com/user-attachments/assets/5ed4a2f0-baf8-49db-ad09-bc2b203b4bcf" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 56 32 PM" src="https://github.com/user-attachments/assets/2f8bac06-6e9a-4d45-8ded-c4d9b2ba318e" />
+<img width="401" height="866" alt="Screenshot 2026-04-13 at 10 59 55 PM" src="https://github.com/user-attachments/assets/63ed8055-b4da-4042-9eb1-17912a1cd9ae" />
 
 ---
 
