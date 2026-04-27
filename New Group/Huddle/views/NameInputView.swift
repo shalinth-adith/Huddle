@@ -12,6 +12,7 @@ struct NameInputView: View {
     @State private var isLoading: Bool = false
 
     let onSubmit: (String) -> Void
+    var onBack: (() -> Void)? = nil
 
     var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
 
@@ -36,17 +37,32 @@ struct NameInputView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 32) {
-                    // Progress dots
-                    HStack(spacing: 8) {
-                        Capsule()
-                            .fill(Color.huddleCoral)
-                            .frame(width: 48, height: 6)
-                        Capsule()
-                            .fill(Color.huddleSecondaryFixed)
-                            .frame(width: 48, height: 6)
-                        Capsule()
-                            .fill(Color.huddleSecondaryFixed)
-                            .frame(width: 48, height: 6)
+                    // Back button + progress dots
+                    HStack {
+                        Button(action: { onBack?() }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color.huddleTextSecondary)
+                                .padding(10)
+                                .background(Color.white)
+                                .clipShape(Circle())
+                                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+                        }
+                        .opacity(isLoading ? 0.4 : 1)
+                        .disabled(isLoading)
+
+                        Spacer()
+
+                        HStack(spacing: 8) {
+                            Capsule().fill(Color.huddleCoral).frame(width: 40, height: 6)
+                            Capsule().fill(Color.huddleSecondaryFixed).frame(width: 40, height: 6)
+                            Capsule().fill(Color.huddleSecondaryFixed).frame(width: 40, height: 6)
+                        }
+
+                        Spacer()
+
+                        // Balance the back button so dots stay centred
+                        Color.clear.frame(width: 40, height: 40)
                     }
                     .padding(.top, 24)
 

@@ -1,175 +1,208 @@
 import SwiftUI
 
 struct ShoppingList: View {
-     @EnvironmentObject var authService: AuthService
-     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var authService: AuthService
+    @Environment(\.dismiss) var dismiss
 
-     @StateObject private var viewModel: ShoppingListViewModel
-     @State private var newItem: String = ""
+    @StateObject private var viewModel: ShoppingListViewModel
+    @State private var newItem: String = ""
+    @FocusState private var isInputFocused: Bool
 
-     let family: Family
+    let family: Family
 
-     init(family: Family) {
-         self.family = family
-         let familyId = family.id ?? ""
-           print("🏠 ShoppingList initialized with familyId: \(familyId)")
-           _viewModel = StateObject(wrappedValue: ShoppingListViewModel(familyId: familyId))
-     }
+    init(family: Family) {
+        self.family = family
+        let familyId = family.id ?? ""
+        print("🏠 ShoppingList initialized with familyId: \(familyId)")
+        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(familyId: familyId))
+    }
 
-     var body: some View {
-         ZStack {
-             Color.huddleBackground.ignoresSafeArea()
-
-             VStack(spacing: 0) {
-                 headerSection
-                 addItemSection
-
-                 if viewModel.isLoading {
-                     ProgressView()
-                         .padding()
-                 } else {
-                     shoppingListSection
-                 }
-             }
-         }
-         .onAppear {
-             viewModel.loadItems()
-         }
-     }
-
-     private var headerSection: some View {
-         HStack {
-             Text("Shopping List")
-                 .font(.system(size: 28, weight: .bold, design: .rounded))
-                 .foregroundColor(.huddleCoral)
-
-             Spacer()
-
-             Button(action: {
-                 dismiss()
-             }) {
-                 Image(systemName: "xmark.circle.fill")
-                     .font(.system(size: 28))
-                     .foregroundColor(.gray)
-             }
-             .buttonStyle(.plain) 
-
-         }
-         .padding(.horizontal, 20)
-         .padding(.top, 20)
-         .padding(.bottom, 16)
-     }
-
-     private var addItemSection: some View {
-         HStack(spacing: 12) {
-             TextField("Add item...", text: $newItem)
-                 .font(.system(size: 16, design: .rounded))
-                 .foregroundColor(.black)
-                 .padding(12)
-                 .background(Color.white)  // CHANGED from Color.primary
-                 .cornerRadius(12)
-                 .autocorrectionDisabled(true)
-
-             
-                Button(action: addItem) {
-                Image(systemName: "plus.circle.fill")
-                .font(.system(size: 32))
-                .foregroundColor(newItem.trimmingCharacters(in: .whitespaces).isEmpty ?
-                .gray : .huddleCoral)
+    var body: some View {
+        ZStack {
+            Color.huddleBackground.ignoresSafeArea()
+            VStack(spacing: 0) {
+                headerSection
+                addItemSection
+                if viewModel.isLoading {
+                    ProgressView()
+                        .padding(.top, 40)
+                    Spacer()
+                } else {
+                    shoppingListSection
                 }
-                .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
-                .buttonStyle(.plain)
+            }
+        }
+        .buttonStyle(.plain)
+        .preferredColorScheme(.light)
+        .onAppear { viewModel.loadItems() }
+    }
+
+    // MARK: - Header
+
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Shopping List")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                if !viewModel.shoppingItems.isEmpty {
+                    let done = viewModel.shoppingItems.filter { $0.isCompleted }.count
+                    Text("\(viewModel.shoppingItems.count) items · \(done) done")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.huddleTextTertiary)
                 }
-         .padding(.horizontal, 20)
-         .padding(.bottom, 16)
-     }
+            }
+            Spacer()
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.huddleTextTertiary)
+                    .padding(8)
+                    .background(Color.huddleSecondaryFixed)
+                    .clipShape(Circle())
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(Color.huddleBackground)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .bottom)
+    }
 
-     private var shoppingListSection: some View {
-         ScrollView {
-             VStack(spacing: 12) {
-                 if viewModel.shoppingItems.isEmpty {
-                     VStack(spacing: 12) {
-                         Image(systemName: "cart")
-                             .font(.system(size: 60))
-                             .foregroundColor(.gray.opacity(0.5))
-                             .padding(.top, 60)
+    // MARK: - Add Item
 
-                         Text("No items yet")
-                             .font(.system(size: 16, design: .rounded))
-                             .foregroundColor(.gray)
-                     }
-                 } else {
-                     ForEach(Array(viewModel.shoppingItems.prefix(3))) { item in
-                           shoppingItemRow(item: item)
-                       }
-                     }
-                 }
-             }
-             .padding(.horizontal, 20)
-             .padding(.bottom, 20)
-         }
-     
+    private var addItemSection: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "cart")
+                    .font(.system(size: 15))
+                    .foregroundColor(isInputFocused ? Color.huddleCoral : Color.huddleTextTertiary)
 
-     private func shoppingItemRow(item: HuddleMessage) -> some View {
-         HStack(spacing: 12) {
-             Button(action: {
-                 viewModel.toggleComplete(item: item)
-             }) {
-                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
-                     .font(.system(size: 24))
-                     .foregroundColor(item.isCompleted ? .green : .gray)
-             }
+                TextField("Add an item...", text: $newItem)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.huddleTextPrimary)
+                    .autocorrectionDisabled(true)
+                    .focused($isInputFocused)
+                    .onSubmit { addItem() }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Color.white)
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isInputFocused ? Color.huddleCoral : Color.huddleBorder, lineWidth: 1.5)
+            )
 
-             VStack(alignment: .leading, spacing: 4) {
-                 Text(item.content)
-                     .font(.system(size: 16, design: .rounded))
-                     .foregroundColor(item.isCompleted ? .gray : .black)
-                     .strikethrough(item.isCompleted)
+            Button(action: addItem) {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        newItem.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color.huddleTextTertiary.opacity(0.3)
+                            : Color.huddleCoral
+                    )
+                    .clipShape(Circle())
+            }
+            .disabled(newItem.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.huddleBackground)
+    }
 
-                 Text("Added by \(item.senderName)")
-                     .font(.system(size: 12, design: .rounded))
-                     .foregroundColor(.gray)
-             }
+    // MARK: - List
 
-             Spacer()
+    private var shoppingListSection: some View {
+        ScrollView(showsIndicators: false) {
+            if viewModel.shoppingItems.isEmpty {
+                VStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.huddleSecondaryFixed)
+                            .frame(width: 80, height: 80)
+                        Image(systemName: "cart")
+                            .font(.system(size: 34))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                    .padding(.top, 60)
+                    Text("Your list is empty")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary)
+                    Text("Add items above to get started")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.huddleTextTertiary)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(viewModel.shoppingItems) { item in
+                        shoppingItemRow(item: item)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .padding(.bottom, 24)
+            }
+        }
+    }
 
-             Button(action: {
-                 viewModel.deleteItem(item: item)
-             }) {
-                 Image(systemName: "trash")
-                     .font(.system(size: 16))
-                     .foregroundColor(.red)
-             }
-         }
-         .padding(12)
-         .background(Color.white)
-         .cornerRadius(12)
-     }
+    private func shoppingItemRow(item: HuddleMessage) -> some View {
+        HStack(spacing: 12) {
+            Button(action: { viewModel.toggleComplete(item: item) }) {
+                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundColor(item.isCompleted ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.4))
+            }
 
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.content)
+                    .font(.system(size: 15))
+                    .foregroundColor(item.isCompleted ? Color.huddleTextTertiary : Color.huddleTextPrimary)
+                    .strikethrough(item.isCompleted, color: Color.huddleTextTertiary)
 
-     private func addItem() {
-         guard let userId = authService.currentUser?.id,
-               let userName = authService.currentUser?.displayName else {
-             return
-         }
+                Text("Added by \(item.senderName)")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.huddleTextTertiary.opacity(0.7))
+            }
 
-         viewModel.addItem(
-             content: newItem,
-             senderId: userId,
-             senderName: userName
-         )
+            Spacer()
 
-         newItem = ""
-     }
- }
+            Button(action: { viewModel.deleteItem(item: item) }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
+                    .padding(8)
+                    .background(Color.huddleSecondaryFixed)
+                    .clipShape(Circle())
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
+        .opacity(item.isCompleted ? 0.7 : 1)
+    }
 
- #Preview {
-     ShoppingList(family: Family(
-         id: "preview",
-         name: "Test Family",
-         code: "H-123456",
-         createdAt: Date(),
-         members: []
-     ))
-     .environmentObject(AuthService())
- }
+    // MARK: - Add Item Action
+
+    private func addItem() {
+        guard let userId = authService.currentUser?.id,
+              let userName = authService.currentUser?.displayName else { return }
+        viewModel.addItem(content: newItem, senderId: userId, senderName: userName)
+        newItem = ""
+    }
+}
+
+#Preview {
+    ShoppingList(family: Family(
+        id: "preview",
+        name: "Test Family",
+        code: "H-123456",
+        createdAt: Date(),
+        members: []
+    ))
+    .environmentObject(AuthService())
+}

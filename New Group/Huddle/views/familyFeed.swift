@@ -5,13 +5,39 @@ struct FamilyFeedView: View {
     @StateObject private var viewModel: FamilyFeedViewModel
     @State private var messageText: String = ""
     @Binding var openToShopping: Bool
-    
-    
-    
+
     @FocusState private var isMessageFieldFocused: Bool
-    @State private var isChatExpanded = false
-    
-    
+    @State private var selectedTab: FeedTab = .home
+
+    enum FeedTab: CaseIterable {
+        case home, messages, shopping, family
+
+        var icon: String {
+            switch self {
+            case .home:     return "house"
+            case .messages: return "message"
+            case .shopping: return "cart"
+            case .family:   return "person.2"
+            }
+        }
+        var activeIcon: String {
+            switch self {
+            case .home:     return "house.fill"
+            case .messages: return "message.fill"
+            case .shopping: return "cart.fill"
+            case .family:   return "person.2.fill"
+            }
+        }
+        var label: String {
+            switch self {
+            case .home:     return "Home"
+            case .messages: return "Messages"
+            case .shopping: return "Shopping"
+            case .family:   return "Family"
+            }
+        }
+    }
+
     init(authService: AuthService, openToShopping: Binding<Bool>) {
         _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
             familyService: FamilyService(),
@@ -20,421 +46,702 @@ struct FamilyFeedView: View {
         ))
         _openToShopping = openToShopping
     }
-    
+
     var body: some View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
-            
+
             if viewModel.isLoading {
                 ProgressView()
             } else if let family = viewModel.family {
-                if isChatExpanded {
-                    expandedChatView(family: family)
-                } else {
-                    feedContent(family: family)  
+                VStack(spacing: 0) {
+                    headerBar(family: family)
+                    tabContent(family: family)
+                }
+                // safeAreaInset pins the bar to the real bottom (incl. home indicator)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: 0) {
+                        if selectedTab == .messages {
+                            messageInputBar
+                        }
+                        tabBar
+                    }
                 }
             } else {
                 Text("Error loading family")
-            }
-            
-            VStack {
-                Spacer()
-                messageInputField()
+                    .foregroundColor(Color.huddleTextTertiary)
             }
         }
-        
-        .onTapGesture {
-            isMessageFieldFocused = false
-        }
+        .preferredColorScheme(.light)
+        .buttonStyle(.plain)
+        .onTapGesture { isMessageFieldFocused = false }
         .onAppear {
             viewModel.loadFamily()
             viewModel.loadMessages()
             viewModel.loadShoppingItems()
             viewModel.loadPinnedMessages()
-            
         }
-        .onDisappear {
-            viewModel.cleanup()
-        }
+        .onDisappear { viewModel.cleanup() }
         .onChange(of: openToShopping) { newValue in
             if newValue {
-                viewModel.showShoppingList = true
+                selectedTab = .shopping
                 openToShopping = false
             }
         }
-        .sheet(isPresented: $viewModel.showShareSheet) {
-            shareSheet
-        }
+        .sheet(isPresented: $viewModel.showShareSheet) { shareSheet }
         .sheet(isPresented: $viewModel.showShoppingList, onDismiss: {
             viewModel.loadShoppingItems()
         }) {
             if let family = viewModel.family {
-                ShoppingList(family: family)
-                    .environmentObject(authService)
-            }
-        }                           
-    }
-    
-    
-    
-    
-    private func feedContent(family: Family) -> some View {
-        VStack(spacing: 0) {
-            headerSection(family: family)
-            membersSection(family: family)
-            shoppingListPreview()
-            pinnedSection()
-            messagesSection()
-        }
-    }
-    private func expandedChatView(family: Family) -> some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.gray.opacity(0.5))
-                    .frame(width: 40, height: 5)
-                    .padding(.top, 12)
-                
-                HStack {
-                    Image(systemName: "message.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.huddleCoral)
-                    
-                    Text("Messages")
-                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                        .foregroundColor(.black)
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        withAnimation(.spring()) {
-                            isChatExpanded = false
-                        }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.gray)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-            }
-            .background(Color.huddleBackground)
-            
-            ScrollView {
-                VStack(spacing: 12) {
-                    if viewModel.messages.isEmpty {
-                        Text("No messages yet. Start chatting!")
-                            .font(.system(size: 14, design: .rounded))
-                            .foregroundColor(.gray)
-                            .padding()
-                    } else {
-                        ForEach(viewModel.messages) { message in
-                            messageCard(message: message)
-                            
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 80)
+                ShoppingList(family: family).environmentObject(authService)
             }
         }
     }
-    
-    
-    private func headerSection(family: Family) -> some View {
+
+    // MARK: - Tab Bar
+
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(FeedTab.allCases, id: \.self) { tab in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.18)) { selectedTab = tab }
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
+                            .font(.system(size: 22))
+                            .foregroundColor(selectedTab == tab ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.5))
+                        Text(tab.label)
+                            .font(.system(size: 10, weight: selectedTab == tab ? .semibold : .regular))
+                            .foregroundColor(selectedTab == tab ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                }
+            }
+        }
+        .background(
+            Color.white
+                .ignoresSafeArea(edges: .bottom)    // fills the home-indicator gap
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -2)
+        )
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
+    }
+
+    // MARK: - Tab Router
+
+    @ViewBuilder
+    private func tabContent(family: Family) -> some View {
+        switch selectedTab {
+        case .home:     homeTab(family: family)
+        case .messages: messagesTab()
+        case .shopping: shoppingTab()
+        case .family:   familyTab(family: family)
+        }
+    }
+
+    // MARK: - Shared Header
+
+    private func headerBar(family: Family) -> some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(family.name)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.huddleCoral)
-                
-                Text("\(family.members.count) members")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundColor(.gray)
+            HStack(spacing: 6) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Color.huddleCoral)
+                Text("Huddle")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(Color.huddleCoral)
             }
-            
             Spacer()
-            
-            Button(action: {
-                viewModel.showShareSheet = true
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: "square.and.arrow.up")
-                    Text("Share")
+            HStack(spacing: 10) {
+                Button(action: { viewModel.showShareSheet = true }) {
+                    Image(systemName: "bell")
+                        .font(.system(size: 18))
+                        .foregroundColor(Color.huddleCoral)
+                        .padding(8)
+                        .background(Color.huddleSecondaryFixed)
+                        .clipShape(Circle())
                 }
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundColor(.huddleCoral)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white)
-                .cornerRadius(20)
-            }
-            .buttonStyle(.plain)
-
-            
-            Button(action: {
-                authService.signOut()
-            }) {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                    .font(.system(size: 16))
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(.plain)
-
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
-    }
-    
-    private func membersSection(family: Family) -> some View {
-        // Get unique members by ID
-        let uniqueMembers = Array(Dictionary(grouping: family.members, by: { $0.id })
-            .compactMap { $0.value.first })
-        
-        return HStack(spacing: 12) {
-            // Member avatars (first 3 unique members)
-            HStack(spacing: -8) {
-                ForEach(uniqueMembers.prefix(3)) { member in
+                Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .family } }) {
                     Circle()
-                        .fill(Color.huddleCoral.opacity(0.2))
+                        .fill(Color.huddlePrimaryFixed)
                         .frame(width: 36, height: 36)
                         .overlay(
-                            Text(getInitials(from: member.displayName))
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                                .foregroundColor(.huddleCoral)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white, lineWidth: 2)
+                            Text(getInitials(from: authService.currentUser?.displayName ?? ""))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.huddleCoral)
                         )
                 }
             }
-            
-            Text("\(uniqueMembers.count) members")
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.gray)
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12))
-                .foregroundColor(.gray)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(Color.white)
-        .cornerRadius(12)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .padding(.vertical, 14)
+        .background(Color.huddleBackground)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .bottom)
     }
-    
-    
-    
-    private func shoppingListPreview() -> some View {
-        let items = viewModel.shoppingItems
-        let firstThree = Array(items.prefix(3))
-        let remainingCount = max(0, items.count - 3)
-        
+
+    // MARK: - Home Tab
+
+    private func homeTab(family: Family) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+                heroCard(family: family)
+                membersCard(family: family)
+                shoppingPreviewCard()
+                if !viewModel.pinnedMessages.isEmpty { pinnedCard() }
+                chatPreviewCard()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
+        }
+    }
+
+    private func heroCard(family: Family) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.huddleCoral.opacity(0.8), Color.huddlePrimaryFixed],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(height: 148)
+
+            LinearGradient(
+                colors: [Color.clear, Color.black.opacity(0.4)],
+                startPoint: .center,
+                endPoint: .bottom
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(family.name)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                Text("\(family.members.count) members")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
+            }
+            .padding(16)
+        }
+        .overlay(
+            Button(action: { viewModel.showShareSheet = true }) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.white)
+                    .padding(8)
+                    .background(Color.white.opacity(0.2))
+                    .clipShape(Circle())
+            }
+            .padding(12),
+            alignment: .topTrailing
+        )
+    }
+
+    private func membersCard(family: Family) -> some View {
+        let unique = Array(Dictionary(grouping: family.members, by: { $0.id }).compactMap { $0.value.first })
+
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Image(systemName: "cart.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.huddleCoral)
-                
-                Text("Shopping List")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(.gray)
-                
+                Text("Members")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
                 Spacer()
-                
-                if remainingCount > 0 {
-                    Text("+\(remainingCount) more")
-                        .font(.system(size: 12, design: .rounded))
-                        .foregroundColor(.gray)
+                Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .family } }) {
+                    Text("See All")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
                 }
             }
-            .padding(.horizontal, 20)
-            
-            if items.isEmpty {
-                Text("No items yet")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundColor(.gray)
-                    .padding(.horizontal, 20)
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(firstThree) { item in
-                        shoppingItemRow(item: item)
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-        }
-        .padding(.bottom, 16)
-    }
-    
-    
-    private func shoppingItemRow(item: HuddleMessage) -> some View {
-        let isCompleted = item.isCompleted
-        let content = item.content
-        
-        return HStack(spacing: 12) {
-            Button(action: {
-                viewModel.toggleShoppingItem(item)
-            }) {
-                Image(systemName: isCompleted ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 20))
-                    .foregroundColor(isCompleted ? .green : .gray)
-            }
-            
-            Text(content)
-                .font(.system(size: 14, design: .rounded))
-                .foregroundColor(isCompleted ? .gray : .black)
-                .strikethrough(isCompleted)
-            
-            Spacer()
-        }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(12)
-    }
-    
-    
-    private func getInitials(from name: String) -> String {
-        let components = name.split(separator: " ")
-        let initials = components.prefix(2).compactMap { $0.first }
-        return String(initials).uppercased()
-    }
-    
-    private func pinnedSection() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if !viewModel.pinnedMessages.isEmpty {
-                HStack {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.huddleCoral)
-                    
-                    Text("Pinned")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(.gray)
-                    
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                
-                VStack(spacing: 8) {
-                    ForEach(viewModel.pinnedMessages) { message in
-                        pinnedItemCard(message: message)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-        }
-    }
-    
-    
-    private func pinnedItemCard(message: HuddleMessage) -> some View {
-        HStack {
-            Text(message.content)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundColor(.black)
-            Spacer()
-        }
-        .padding(12)
-        .background(Color.huddlePeach.opacity(0.3))
-        .cornerRadius(12)
-        .contextMenu {
-            Button(action: {
-                viewModel.togglePinMessage(message)
-            }) {
-                Label("Unpin Message", systemImage: "pin.slash")
-            }
-        }
-    }
-    
-    
-    
-    private func messagesSection() -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Image(systemName: "message.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.huddleCoral)
-                
-                Text("Messages")
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundColor(.gray)
-                
-                Spacer()
-                
-                Button(action: {
-                    viewModel.showShoppingList = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "cart.fill")
-                            .font(.system(size: 14))
-                        Text("Shopping")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundColor(.huddleCoral)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.white)
-                    .cornerRadius(16)
-                }
-                .buttonStyle(.plain)  
 
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            
-            ScrollView {
-                VStack(spacing: 12) {
-                    if viewModel.messages.isEmpty {
-                        Text("No messages yet. Start chatting!")
-                            .font(.system(size: 14, design: .rounded))
-                            .foregroundColor(.gray)
-                            .padding()
-                    } else {
-                        ForEach(viewModel.messages) { message in
-                            messageCard(message: message)  // ← Changed this line
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(unique) { member in
+                        VStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.huddleCoral.opacity(0.12))
+                                .frame(width: 48, height: 48)
+                                .overlay(
+                                    Text(getInitials(from: member.displayName))
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .foregroundColor(Color.huddleCoral)
+                                )
+                                .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
+                            Text(member.displayName.components(separatedBy: " ").first ?? member.displayName)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color.huddleTextSecondary)
                         }
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 80)
         }
-        .onTapGesture {
-            withAnimation(.spring()) {
-                isChatExpanded = true
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+    }
+
+    private func shoppingPreviewCard() -> some View {
+        let items = viewModel.shoppingItems
+        let preview = Array(items.prefix(3))
+        let remaining = max(0, items.count - 3)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "cart.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.huddleCoral)
+                    Text("Shopping List")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary)
+                }
+                Spacer()
+                Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .shopping } }) {
+                    Text("View All")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
+                }
+            }
+
+            if items.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "cart")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
+                    Text("No items yet")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.huddleTextTertiary)
+                }
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(preview) { item in
+                        HStack(spacing: 10) {
+                            Button(action: { viewModel.toggleShoppingItem(item) }) {
+                                Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(item.isCompleted ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.4))
+                            }
+                            Text(item.content)
+                                .font(.system(size: 14))
+                                .foregroundColor(item.isCompleted ? Color.huddleTextTertiary : Color.huddleTextPrimary)
+                                .strikethrough(item.isCompleted, color: Color.huddleTextTertiary)
+                            Spacer()
+                        }
+                    }
+                    if remaining > 0 {
+                        Text("+\(remaining) more items")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+    }
+
+    private func pinnedCard() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.huddleCoral)
+                Text("Pinned")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                Spacer()
+            }
+            ForEach(viewModel.pinnedMessages) { message in
+                HStack {
+                    Text(message.content)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.huddleTextPrimary)
+                    Spacer()
+                }
+                .padding(12)
+                .background(Color.huddlePeach.opacity(0.3))
+                .cornerRadius(10)
+                .contextMenu {
+                    Button(action: { viewModel.togglePinMessage(message) }) {
+                        Label("Unpin Message", systemImage: "pin.slash")
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+    }
+
+    private func chatPreviewCard() -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.huddleCoral)
+                    Text("Huddle Chat")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary)
+                }
+                Spacer()
+                Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .messages } }) {
+                    Text("Open Chat")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
+                }
+            }
+
+            if viewModel.messages.isEmpty {
+                Text("No messages yet. Start chatting!")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.huddleTextTertiary)
+                    .padding(.vertical, 4)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(Array(viewModel.messages.suffix(3))) { message in
+                        messageBubble(message: message)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+    }
+
+    // MARK: - Messages Tab
+
+    private func messagesTab() -> some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 10) {
+                if viewModel.messages.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "message")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.huddleTextTertiary.opacity(0.35))
+                            .padding(.top, 60)
+                        Text("No messages yet")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Color.huddleTextPrimary)
+                        Text("Be the first to say something!")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    ForEach(viewModel.messages) { message in
+                        messageBubble(message: message)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 14)
+        }
+    }
+
+    private func messageBubble(message: HuddleMessage) -> some View {
+        let isMe = message.senderName == authService.currentUser?.displayName
+
+        return HStack(alignment: .top, spacing: 8) {
+            if isMe { Spacer(minLength: 48) }
+
+            if !isMe {
+                Circle()
+                    .fill(Color.huddleCoral.opacity(0.12))
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Text(getInitials(from: message.senderName))
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Color.huddleCoral)
+                    )
+            }
+
+            VStack(alignment: isMe ? .trailing : .leading, spacing: 3) {
+                if !isMe {
+                    Text(message.senderName)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.huddleTextSecondary)
+                }
+                Text(message.content)
+                    .font(.system(size: 14))
+                    .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(isMe ? Color.huddleCoral : Color.huddleSurface)
+                    .cornerRadius(14)
+                    .contextMenu {
+                        Button(action: { viewModel.togglePinMessage(message) }) {
+                            Label(
+                                message.isPinned ? "Unpin Message" : "Pin Message",
+                                systemImage: message.isPinned ? "pin.slash" : "pin.fill"
+                            )
+                        }
+                        Button(role: .destructive, action: { viewModel.deleteMessage(message) }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                Text(formatTime(message.createdAt))
+                    .font(.system(size: 10))
+                    .foregroundColor(Color.huddleTextTertiary)
+            }
+
+            if !isMe { Spacer(minLength: 48) }
+        }
+    }
+
+    // MARK: - Shopping Tab
+
+    private func shoppingTab() -> some View {
+        VStack(spacing: 0) {
+            // Sub-header
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Shopping List")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary)
+                    if !viewModel.shoppingItems.isEmpty {
+                        let done = viewModel.shoppingItems.filter { $0.isCompleted }.count
+                        Text("\(viewModel.shoppingItems.count) items · \(done) done")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                }
+                Spacer()
+                Button(action: { viewModel.showShoppingList = true }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Add Items")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.huddleCoral)
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.huddleBackground)
+            .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .bottom)
+
+            ScrollView(showsIndicators: false) {
+                if viewModel.shoppingItems.isEmpty {
+                    VStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.huddleSecondaryFixed)
+                                .frame(width: 72, height: 72)
+                            Image(systemName: "cart")
+                                .font(.system(size: 30))
+                                .foregroundColor(Color.huddleTextTertiary)
+                        }
+                        .padding(.top, 60)
+                        Text("Your list is empty")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(Color.huddleTextPrimary)
+                        Text("Tap \"Add Items\" to get started")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    LazyVStack(spacing: 10) {
+                        ForEach(viewModel.shoppingItems) { item in
+                            HStack(spacing: 12) {
+                                Button(action: { viewModel.toggleShoppingItem(item) }) {
+                                    Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
+                                        .font(.system(size: 22))
+                                        .foregroundColor(item.isCompleted ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.4))
+                                }
+                                Text(item.content)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(item.isCompleted ? Color.huddleTextTertiary : Color.huddleTextPrimary)
+                                    .strikethrough(item.isCompleted, color: Color.huddleTextTertiary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 13)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .opacity(item.isCompleted ? 0.65 : 1)
+                            .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 16)
+                }
             }
         }
     }
-    
-    
-    
-    private func messageInputField() -> some View {
-        HStack(spacing: 12) {
-            ZStack(alignment: .leading) {
-                if messageText.isEmpty {
-                    Text("Type a message...")
-                        .foregroundColor(.gray)
-                        .font(.system(size: 16, design: .rounded))
-                        .padding(.leading, 12)
+
+    // MARK: - Family Tab
+
+    private func familyTab(family: Family) -> some View {
+        let unique = Array(Dictionary(grouping: family.members, by: { $0.id }).compactMap { $0.value.first })
+
+        return ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+
+                // Family code card
+                VStack(spacing: 16) {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(Color.huddlePrimaryFixed)
+                                .frame(width: 40, height: 40)
+                            Image(systemName: "house.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(Color.huddleCoral)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(family.name)
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(Color.huddleTextPrimary)
+                            Text("\(unique.count) members")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.huddleTextTertiary)
+                        }
+                        Spacer()
+                    }
+
+                    VStack(spacing: 6) {
+                        Text(family.code)
+                            .font(.system(size: 30, weight: .bold))
+                            .foregroundColor(Color.huddleCoral)
+                            .tracking(6)
+                        Text("family invite code")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.huddleTextTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 18)
+                    .background(Color.huddleCoral.opacity(0.05))
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.huddleCoral.opacity(0.15), lineWidth: 1))
+
+                    HStack(spacing: 10) {
+                        Button(action: { UIPasteboard.general.string = family.code }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "doc.on.doc").font(.system(size: 13))
+                                Text("Copy Code").font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundColor(Color.huddleCoral)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.huddleBorder, lineWidth: 1.5))
+                        }
+                        ShareLink(item: family.code) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.arrow.up").font(.system(size: 13))
+                                Text("Share").font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Color.huddleCoral)
+                            .cornerRadius(10)
+                        }
+                    }
                 }
-                TextField("", text: $messageText)
-                    .font(.system(size: 16, design: .rounded))
-                    .foregroundColor(.black)
-                    .padding(12)
-                    .focused($isMessageFieldFocused)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+
+                // Members list
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Members (\(unique.count))")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary)
+
+                    VStack(spacing: 0) {
+                        ForEach(Array(unique.enumerated()), id: \.element.id) { index, member in
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(Color.huddleCoral.opacity(0.12))
+                                    .frame(width: 40, height: 40)
+                                    .overlay(
+                                        Text(getInitials(from: member.displayName))
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(Color.huddleCoral)
+                                    )
+                                Text(member.displayName)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(Color.huddleTextPrimary)
+                                Spacer()
+                            }
+                            .padding(.vertical, 11)
+                            if index < unique.count - 1 {
+                                Divider().padding(.leading, 52)
+                            }
+                        }
+                    }
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
+
+                // Sign out
+                Button(action: { authService.signOut() }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 15))
+                        Text("Sign Out")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .foregroundColor(Color(hex: "BA1A1A"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(hex: "BA1A1A").opacity(0.07))
+                    .cornerRadius(12)
+                }
             }
-            .background(Color.white)
-            .cornerRadius(20)
-            
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 16)
+        }
+    }
+
+    // MARK: - Message Input
+
+    private var messageInputBar: some View {
+        HStack(spacing: 10) {
+            HStack(spacing: 8) {
+                TextField("Message your family...", text: $messageText)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.huddleTextPrimary)
+                    .focused($isMessageFieldFocused)
+                if !messageText.isEmpty {
+                    Button(action: { messageText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Color.huddleBackground)
+            .cornerRadius(24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(isMessageFieldFocused ? Color.huddleCoral : Color.huddleBorder, lineWidth: 1.5)
+            )
+
             Button(action: {
                 guard !messageText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                 viewModel.sendMessage(content: messageText)
@@ -444,127 +751,128 @@ struct FamilyFeedView: View {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 16))
                     .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.huddleCoral)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color.huddleTextTertiary.opacity(0.3)
+                            : Color.huddleCoral
+                    )
                     .clipShape(Circle())
             }
-            .buttonStyle(.plain)
-
+            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(Color.huddleBackground)
-    }
-    
-    
-    
-    private func formatTime(_ date: Date) -> String {
-        let now = Date()
-        let seconds = Int(now.timeIntervalSince(date))
-        
-        if seconds < 60 {
-            return "just now"
-        } else if seconds < 3600 {
-            let minutes = seconds / 60
-            return "\(minutes)m ago"
-        } else if seconds < 86400 {
-            let hours = seconds / 3600
-            return "\(hours)h ago"
-        } else {
-            let days = seconds / 86400
-            return "\(days)d ago"
-        }
-    }
-    
-    private func messageCard(message: HuddleMessage) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(message.senderName)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(.huddleCoral)
-                
-                Spacer()
-                
-                Text(formatTime(message.createdAt))
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundColor(.gray)
-            }
-            
-            Text(message.content)
-                .font(.system(size: 15, design: .rounded))
-                .foregroundColor(.black)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-        .contextMenu {
-            Button(action: {
-                viewModel.togglePinMessage(message)
-            }) {
-                Label(
-                    message.isPinned ? "Unpin Message" : "Pin Message",
-                    systemImage: message.isPinned ? "pin.slash" : "pin.fill"
-                )
-            }
-            
-            Button(role: .destructive, action: {
-                viewModel.deleteMessage(message)
-            }) {
-                Label("Delete", systemImage: "trash")
-            }
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
+    }
+
+    // MARK: - Share Sheet
+
+    private var shareSheet: some View {
+        if let family = viewModel.family {
+            return AnyView(
+                VStack(spacing: 0) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color.huddleBorder)
+                        .frame(width: 40, height: 5)
+                        .padding(.top, 12)
+                        .padding(.bottom, 20)
+
+                    VStack(spacing: 20) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.huddleCoral.opacity(0.1))
+                                .frame(width: 64, height: 64)
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 28))
+                                .foregroundColor(Color.huddleCoral)
+                        }
+                        VStack(spacing: 6) {
+                            Text("Invite to \(family.name)")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundColor(Color.huddleTextPrimary)
+                            Text("Share this code with family members")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.huddleTextTertiary)
+                        }
+                        VStack(spacing: 6) {
+                            Text(family.code)
+                                .font(.system(size: 32, weight: .bold))
+                                .foregroundColor(Color.huddleCoral)
+                                .tracking(6)
+                            Text("family code")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.huddleTextTertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .background(Color.huddleCoral.opacity(0.05))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.huddleCoral.opacity(0.15), lineWidth: 1))
+
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                UIPasteboard.general.string = family.code
+                                viewModel.showShareSheet = false
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "doc.on.doc")
+                                    Text("Copy Code")
+                                }
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(Color.huddleCoral)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.white)
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.huddleBorder, lineWidth: 1.5))
+                            }
+                            ShareLink(item: family.code) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "square.and.arrow.up")
+                                    Text("Share")
+                                }
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.huddleCoral)
+                                .cornerRadius(10)
+                            }
+                        }
+                        Button("Done") { viewModel.showShareSheet = false }
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.huddleTextTertiary)
+                            .padding(.bottom, 8)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                }
+                .preferredColorScheme(.light)
+                .presentationDetents([.medium])
+            )
+        } else {
+            return AnyView(EmptyView())
         }
     }
 
+    // MARK: - Helpers
 
+    private func getInitials(from name: String) -> String {
+        String(name.split(separator: " ").prefix(2).compactMap { $0.first }).uppercased()
+    }
 
-     
-
-     private var shareSheet: some View {
-         if let family = viewModel.family {
-             return AnyView(
-                 VStack(spacing: 20) {
-                     Text("Share Family Code")
-                         .font(.system(size: 24, weight: .bold, design: .rounded))
-
-                     Text(family.code)
-                         .font(.system(size: 48, weight: .bold, design: .rounded))
-                         .foregroundColor(.huddleCoral)
-                         .tracking(4)
-                         .padding()
-                         .background(Color.white)
-                         .cornerRadius(16)
-                         .overlay(
-                             RoundedRectangle(cornerRadius: 16)
-                                 .stroke(Color.huddleCoral, lineWidth: 2)
-                         )
-
-                     Text("Share this code with family members")
-                         .font(.system(size: 14, design: .rounded))
-                         .foregroundColor(.gray)
-
-                     Button("Done") {
-                         viewModel.showShareSheet = false
-                     }
-                     .font(.system(size: 18, weight: .semibold, design: .rounded))
-                     .foregroundColor(.white)
-                     .frame(maxWidth: .infinity)
-                     .padding()
-                     .background(Color.huddleCoral)
-                     .cornerRadius(16)
-                     .padding(.horizontal)
-                 }
-                 .padding()
-                 .presentationDetents([.medium])
-             )
-         } else {
-             return AnyView(EmptyView())
-         }
-     }
- }
+    private func formatTime(_ date: Date) -> String {
+        let s = Int(Date().timeIntervalSince(date))
+        if s < 60 { return "just now" }
+        if s < 3600 { return "\(s / 60)m ago" }
+        if s < 86400 { return "\(s / 3600)h ago" }
+        return "\(s / 86400)d ago"
+    }
+}
 
 #Preview {
-      FamilyFeedView(authService: AuthService(), openToShopping: .constant(false))
-          .environmentObject(AuthService())
-  }  
+    FamilyFeedView(authService: AuthService(), openToShopping: .constant(false))
+        .environmentObject(AuthService())
+}

@@ -37,9 +37,14 @@ struct JoinFamily: View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Huddle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(Color.huddleCoral)
+                HStack(spacing: 6) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(Color.huddleCoral)
+                    Text("Huddle")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
+                }
                 Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")

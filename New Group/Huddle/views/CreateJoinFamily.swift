@@ -41,15 +41,10 @@ struct CreateJoinFamily: View {
 
     private var headerBar: some View {
         HStack {
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(Color.huddlePrimaryFixed)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color.huddleCoral)
-                    )
+            HStack(spacing: 6) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Color.huddleCoral)
                 Text("Huddle")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(Color.huddleCoral)

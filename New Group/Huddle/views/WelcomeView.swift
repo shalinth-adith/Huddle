@@ -16,13 +16,11 @@ struct WelcomeView: View {
             VStack(spacing: 0) {
                 headerBar
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        heroSection
-                        featuresStrip
-                    }
+                    heroSection
                 }
             }
         }
+        .preferredColorScheme(.light)
         .buttonStyle(.plain)
     }
 
@@ -85,7 +83,7 @@ struct WelcomeView: View {
             .multilineTextAlignment(.center)
 
             // Body
-            Text("Simplify your family life with a shared space for schedules, grocery lists, and daily chores. Huddle brings everyone together, effortlessly.")
+            Text(" Huddle brings everyone together, effortlessly.")
                 .font(.system(size: 17, weight: .regular))
                 .foregroundColor(Color.huddleTextTertiary)
                 .multilineTextAlignment(.center)
@@ -139,48 +137,19 @@ struct WelcomeView: View {
                         .frame(width: 36, height: 36)
                         .overlay(Circle().stroke(Color.white, lineWidth: 2))
                 }
-                (Text("12k+ ")
+                (Text(" ")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.huddleTextPrimary)
-                + Text("families huddling together")
+                + Text("Families Huddling together")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(Color.huddleTextTertiary))
             }
             .padding(.top, 4)
 
-            Divider().padding(.top, 8)
         }
         .padding(.horizontal, 24)
         .padding(.top, 36)
-        .padding(.bottom, 32)
-    }
-
-    private var featuresStrip: some View {
-        HStack(spacing: 0) {
-            featureCell(icon: "calendar", label: "Shared\nCalendar")
-            Rectangle().frame(width: 1, height: 36).foregroundColor(Color.huddleBorder)
-            featureCell(icon: "cart.fill", label: "Smart\nGroceries")
-            Rectangle().frame(width: 1, height: 36).foregroundColor(Color.huddleBorder)
-            featureCell(icon: "photo.stack", label: "Secure\nPhotos")
-            Rectangle().frame(width: 1, height: 36).foregroundColor(Color.huddleBorder)
-            featureCell(icon: "checkmark.circle.fill", label: "Chore\nTracking")
-        }
-        .padding(.vertical, 24)
-        .background(Color.white)
-    }
-
-    private func featureCell(icon: String, label: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundColor(Color.huddleCoral)
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color.huddleTextPrimary)
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity)
+        .padding(.bottom, 48)
     }
 }
 

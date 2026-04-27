@@ -31,9 +31,10 @@ import SwiftUI
               }
                                                                                                        
               if viewModel.showNameInput && !authService.isAuthenticated {
-                  NameInputView(onSubmit: { name in
-                      viewModel.signIn(name: name)
-                  })
+                  NameInputView(
+                      onSubmit: { name in viewModel.signIn(name: name) },
+                      onBack: { viewModel.showNameInput = false }
+                  )
                   .transition(.move(edge: .bottom))
               }
           }
