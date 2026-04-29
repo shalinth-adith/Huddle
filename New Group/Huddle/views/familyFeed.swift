@@ -9,6 +9,9 @@ struct FamilyFeedView: View {
     @FocusState private var isMessageFieldFocused: Bool
     @State private var selectedTab: FeedTab = .home
     @State private var showLeaveAlert = false
+    @State private var showRenameAlert = false
+    @State private var newFamilyName = ""
+    @State private var showGroupSwitcher = false
 
     enum FeedTab: CaseIterable {
         case home, messages, shopping, family
@@ -87,7 +90,50 @@ struct FamilyFeedView: View {
             Button("Leave", role: .destructive) { viewModel.leaveGroup() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("You will be permanently removed from this group. Other members will be notified.")
+            Text("You will be removed from this group. Your profile is kept — you can join or create another group.")
+        }
+        .alert("Rename Group", isPresented: $showRenameAlert) {
+            TextField("Group name", text: $newFamilyName)
+            Button("Save") { viewModel.renameFamily(newFamilyName) }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showGroupSwitcher) {
+            NavigationView {
+                List {
+                    ForEach(viewModel.availableFamilies) { family in
+                        Button {
+                            if let id = family.id {
+                                showGroupSwitcher = false
+                                viewModel.switchGroup(to: id)
+                            }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(family.name)
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(Color.huddleTextPrimary)
+                                    Text("\(family.members.count) member\(family.members.count == 1 ? "" : "s")")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(Color.huddleTextTertiary)
+                                }
+                                Spacer()
+                                if family.id == authService.currentUser?.currentFamilyId {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(Color.huddleCoral)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Your Groups")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Done") { showGroupSwitcher = false }
+                            .foregroundColor(Color.huddleCoral)
+                    }
+                }
+            }
         }
         .onChange(of: openToShopping) { newValue in
             if newValue {
@@ -167,6 +213,19 @@ struct FamilyFeedView: View {
                         .padding(8)
                         .background(Color.huddleSecondaryFixed)
                         .clipShape(Circle())
+                }
+                if (authService.currentUser?.familyIds.count ?? 0) > 1 {
+                    Button(action: {
+                        viewModel.loadAvailableFamilies()
+                        showGroupSwitcher = true
+                    }) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.huddleCoral)
+                            .padding(8)
+                            .background(Color.huddleSecondaryFixed)
+                            .clipShape(Circle())
+                    }
                 }
                 Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .family } }) {
                     MemberAvatarView(
@@ -487,8 +546,10 @@ struct FamilyFeedView: View {
                                 systemImage: message.isPinned ? "pin.slash" : "pin.fill"
                             )
                         }
-                        Button(role: .destructive, action: { viewModel.deleteMessage(message) }) {
-                            Label("Delete", systemImage: "trash")
+                        if viewModel.isCurrentUserAdmin || message.senderID == authService.currentUser?.id {
+                            Button(role: .destructive, action: { viewModel.deleteMessage(message) }) {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
                 Text(formatTime(message.createdAt))
@@ -608,9 +669,22 @@ struct FamilyFeedView: View {
                                 .foregroundColor(Color.huddleCoral)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(family.name)
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(Color.huddleTextPrimary)
+                            HStack(spacing: 4) {
+                                Text(family.name)
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(Color.huddleTextPrimary)
+                                if viewModel.isCurrentUserAdmin {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.huddleTextTertiary)
+                                }
+                            }
+                            .onTapGesture {
+                                if viewModel.isCurrentUserAdmin {
+                                    newFamilyName = family.name
+                                    showRenameAlert = true
+                                }
+                            }
                             Text("\(unique.count) members")
                                 .font(.system(size: 13))
                                 .foregroundColor(Color.huddleTextTertiary)
@@ -677,9 +751,32 @@ struct FamilyFeedView: View {
                                 Text(member.displayName)
                                     .font(.system(size: 15))
                                     .foregroundColor(Color.huddleTextPrimary)
+                                if family.adminId == member.id {
+                                    Text("Admin")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(Color.huddleCoral)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.huddleCoral.opacity(0.1))
+                                        .cornerRadius(4)
+                                }
                                 Spacer()
                             }
                             .padding(.vertical, 11)
+                            .contextMenu {
+                                if viewModel.isCurrentUserAdmin && member.id != authService.currentUser?.id {
+                                    Button(role: .destructive) {
+                                        viewModel.removeMember(member)
+                                    } label: {
+                                        Label("Remove from Group", systemImage: "person.crop.circle.badge.minus")
+                                    }
+                                    Button {
+                                        viewModel.transferAdmin(to: member)
+                                    } label: {
+                                        Label("Make Admin", systemImage: "star.fill")
+                                    }
+                                }
+                            }
                             if index < unique.count - 1 {
                                 Divider().padding(.leading, 52)
                             }
@@ -691,12 +788,12 @@ struct FamilyFeedView: View {
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
 
-                // Sign out
+                // Leave group
                 Button(action: { showLeaveAlert = true }) {
                     HStack(spacing: 8) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .font(.system(size: 15))
-                        Text("Sign Out")
+                        Text("Leave Group")
                             .font(.system(size: 15, weight: .semibold))
                     }
                     .foregroundColor(Color(hex: "BA1A1A"))

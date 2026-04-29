@@ -22,6 +22,7 @@
       private var shoppingListener: ListenerRegistration?
 
       @Published var pinnedMessages: [HuddleMessage] = []
+      @Published var availableFamilies: [Family] = []
 
       private let familyService: FamilyService
       private let authService: AuthService
@@ -170,23 +171,55 @@
               }
           }
       }
+      var isCurrentUserAdmin: Bool {
+          guard let uid = authService.currentUser?.id, let family else { return false }
+          if let adminId = family.adminId { return adminId == uid }
+          return family.members.sorted { $0.joinedAt < $1.joinedAt }.first?.id == uid
+      }
+
+      func removeMember(_ member: Member) {
+          guard isCurrentUserAdmin,
+                let familyId = authService.currentUser?.currentFamilyId else { return }
+          familyService.removeMember(userId: member.id, familyId: familyId) { [weak self] _ in
+              self?.loadFamily()
+          }
+      }
+
+      func renameFamily(_ newName: String) {
+          let trimmed = newName.trimmingCharacters(in: .whitespaces)
+          guard isCurrentUserAdmin, !trimmed.isEmpty,
+                let familyId = authService.currentUser?.currentFamilyId else { return }
+          familyService.renameFamily(familyId: familyId, newName: trimmed) { [weak self] _ in
+              self?.loadFamily()
+          }
+      }
+
+      func transferAdmin(to member: Member) {
+          guard isCurrentUserAdmin,
+                let familyId = authService.currentUser?.currentFamilyId else { return }
+          familyService.transferAdmin(familyId: familyId, newAdminId: member.id) { [weak self] _ in
+              self?.loadFamily()
+          }
+      }
+
       func deleteMessage(_ message: HuddleMessage) {
-            guard let familyId = authService.currentUser?.currentFamilyId,
-                  let messageId = message.id else { return }
-                                                                                                             
-            messageService.deleteMessage(
-                familyId: familyId,
-                messageId: messageId
-            ) { result in
-                switch result {
-                case .success:
-                    self.loadMessages()
-                    self.loadPinnedMessages()
-                case .failure(_):
-                    break
-                }
-            }
-        }               
+          guard (isCurrentUserAdmin || message.senderID == authService.currentUser?.id),
+                let familyId = authService.currentUser?.currentFamilyId,
+                let messageId = message.id else { return }
+
+          messageService.deleteMessage(
+              familyId: familyId,
+              messageId: messageId
+          ) { result in
+              switch result {
+              case .success:
+                  self.loadMessages()
+                  self.loadPinnedMessages()
+              case .failure(_):
+                  break
+              }
+          }
+      }               
 
       func leaveGroup() {
           guard let userId = authService.currentUser?.id,
@@ -205,14 +238,38 @@
               group.leave()
           }
 
-          group.enter()
-          authService.clearFamilyId {
-              group.leave()
-          }
-
           group.notify(queue: .main) {
-              self.authService.signOut()
+              // Keeps identity — no signOut(). removeFamily switches currentFamilyId or clears it.
+              self.authService.removeFamily(familyId: familyId) { }
           }
+      }
+
+      func switchGroup(to familyId: String) {
+          guard familyId != authService.currentUser?.currentFamilyId else { return }
+          isLoading = true
+          cleanup()
+          authService.switchFamily(to: familyId) { [weak self] in
+              self?.loadFamily()
+              self?.loadMessages()
+              self?.loadShoppingItems()
+              self?.loadPinnedMessages()
+          }
+      }
+
+      func loadAvailableFamilies() {
+          let ids = authService.currentUser?.familyIds ?? []
+          guard ids.count > 1 else { availableFamilies = []; return }
+          availableFamilies = []
+          var loaded: [Family] = []
+          let group = DispatchGroup()
+          for id in ids {
+              group.enter()
+              familyService.fetchFamily(familyId: id) { result in
+                  if case .success(let f) = result { loaded.append(f) }
+                  group.leave()
+              }
+          }
+          group.notify(queue: .main) { self.availableFamilies = loaded }
       }
 
       func cleanup() {

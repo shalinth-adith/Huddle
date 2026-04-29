@@ -151,35 +151,44 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
           }
       }
 
-      // Update user's family ID
-      func updateUserFamily(familyId: String, completion: @escaping (Result<Void, Error>) -> Void)
-   {
+      // Update user's active family — also adds to familyIds array
+      func updateUserFamily(familyId: String, completion: @escaping (Result<Void, Error>) -> Void) {
           guard let userId = currentUser?.id else {
               completion(.failure(NSError(domain: "AuthService", code: -1, userInfo:
   [NSLocalizedDescriptionKey: "No user logged in"])))
               return
           }
-
           db.collection("users").document(userId).updateData([
-              "currentFamilyId": familyId
+              "currentFamilyId": familyId,
+              "familyIds": FieldValue.arrayUnion([familyId])
           ]) { [weak self] error in
-              if let error = error {
-                  completion(.failure(error))
-              } else {
-                  self?.currentUser?.currentFamilyId = familyId
-                  completion(.success(()))
+              if let error { completion(.failure(error)); return }
+              self?.currentUser?.currentFamilyId = familyId
+              if self?.currentUser?.familyIds.contains(familyId) == false {
+                  self?.currentUser?.familyIds.append(familyId)
               }
+              completion(.success(()))
           }
       }
 
-      func clearFamilyId(completion: @escaping () -> Void) {
+      // Switch active group without touching membership
+      func switchFamily(to familyId: String, completion: @escaping () -> Void) {
           guard let userId = currentUser?.id else { completion(); return }
-          db.collection("users").document(userId).updateData([
-              "currentFamilyId": FieldValue.delete()
-          ]) { [weak self] _ in
-              self?.currentUser?.currentFamilyId = nil
+          db.collection("users").document(userId).updateData(["currentFamilyId": familyId]) { [weak self] _ in
+              self?.currentUser?.currentFamilyId = familyId
               completion()
           }
+      }
+
+      // Remove from a group — switches active group or clears it; keeps identity
+      func removeFamily(familyId: String, completion: @escaping () -> Void) {
+          guard let userId = currentUser?.id else { completion(); return }
+          currentUser?.familyIds.removeAll { $0 == familyId }
+          let next = currentUser?.familyIds.first
+          currentUser?.currentFamilyId = next
+          var update: [String: Any] = ["familyIds": FieldValue.arrayRemove([familyId])]
+          if let next { update["currentFamilyId"] = next } else { update["currentFamilyId"] = FieldValue.delete() }
+          db.collection("users").document(userId).updateData(update) { _ in completion() }
       }
 
       func signOut() {

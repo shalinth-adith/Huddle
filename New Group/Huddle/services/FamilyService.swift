@@ -34,7 +34,7 @@ creatorName, creatorPhotoBase64: creatorPhotoBase64, completion: completion)
                 name: familyName,
                 code: familyCode,
                 members: [member],
-
+                adminId: creatorId
             )
 
      
@@ -119,11 +119,46 @@ error in
                 completion(.failure(NSError(domain: "FamilyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
                 return
             }
+            let remaining = family.members.filter { $0.id != userId }
+            var updateData: [String: Any] = ["members": remaining.map { $0.toDictionary() }]
+            // Auto-transfer admin to oldest remaining member if admin is leaving
+            if family.adminId == userId, let newAdmin = remaining.sorted(by: { $0.joinedAt < $1.joinedAt }).first {
+                updateData["adminId"] = newAdmin.id
+            }
+            ref.updateData(updateData) { error in
+                if let error = error { completion(.failure(error)); return }
+                completion(.success(()))
+            }
+        }
+    }
+
+    func removeMember(userId: String, familyId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let ref = db.collection("families").document(familyId)
+        ref.getDocument { snapshot, error in
+            if let error = error { completion(.failure(error)); return }
+            guard let family = try? snapshot?.data(as: Family.self) else {
+                completion(.failure(NSError(domain: "FamilyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
+                return
+            }
             let remaining = family.members.filter { $0.id != userId }.map { $0.toDictionary() }
             ref.updateData(["members": remaining]) { error in
                 if let error = error { completion(.failure(error)); return }
                 completion(.success(()))
             }
+        }
+    } 
+
+    func renameFamily(familyId: String, newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("families").document(familyId).updateData(["name": newName]) { error in
+            if let error = error { completion(.failure(error)); return }
+            completion(.success(()))
+        }
+    }
+
+    func transferAdmin(familyId: String, newAdminId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        db.collection("families").document(familyId).updateData(["adminId": newAdminId]) { error in
+            if let error = error { completion(.failure(error)); return }
+            completion(.success(()))
         }
     }
 
