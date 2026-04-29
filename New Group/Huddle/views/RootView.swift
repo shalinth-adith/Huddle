@@ -19,7 +19,10 @@ import SwiftUI
                                                                                                        
       var body: some View {
           ZStack {
-              if !authService.isAuthenticated {
+              if authService.isCheckingAuth {
+                  Color.huddleBackground.ignoresSafeArea()
+                      .overlay(ProgressView().tint(Color.huddleCoral))
+              } else if !authService.isAuthenticated {
                   WelcomeView(onGetStarted: {
                       viewModel.showNameInput = true
                   })
@@ -32,7 +35,7 @@ import SwiftUI
                                                                                                        
               if viewModel.showNameInput && !authService.isAuthenticated {
                   NameInputView(
-                      onSubmit: { name in viewModel.signIn(name: name) },
+                      onSubmit: { name, image in viewModel.signIn(name: name, image: image) },
                       onBack: { viewModel.showNameInput = false }
                   )
                   .transition(.move(edge: .bottom))

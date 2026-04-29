@@ -39,7 +39,7 @@ import Combine
           }
           isLoading = true
           errorMessage = nil
-          familyService.createFamily(familyName: trimmedName, creatorId: userId, creatorName: userName) {  result in
+          familyService.createFamily(familyName: trimmedName, creatorId: userId, creatorName: userName, creatorPhotoBase64: authService.photoThumbnailBase64) { result in
               self.isLoading = false
               switch result {
                 case .success(let family):

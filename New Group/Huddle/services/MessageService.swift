@@ -201,6 +201,28 @@ class MessageService {
              completion(.failure(error))
          }
      }
+    func sendSystemMessage(familyId: String, content: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let message = HuddleMessage(
+            familyID: familyId,
+            senderID: "system",
+            senderName: "system",
+            type: .system,
+            content: content,
+            isPinned: false,
+            isCompleted: false,
+            createdAt: Date()
+        )
+        do {
+            try db.collection("families").document(familyId)
+                .collection("messages").addDocument(from: message) { error in
+                    if let error { completion(.failure(error)); return }
+                    completion(.success(()))
+                }
+        } catch {
+            completion(.failure(error))
+        }
+    }
+
     func listenToMessages(
           familyId: String,
           completion: @escaping (Result<[HuddleMessage], Error>) -> Void
@@ -209,7 +231,7 @@ class MessageService {
         return db.collection("families")
               .document(familyId)
               .collection("messages")
-              .whereField("type", isEqualTo: MessageType.text.rawValue)
+              .whereField("type", in: [MessageType.text.rawValue, MessageType.system.rawValue])
               .order(by: "createdAt", descending: false)
               .limit(to: 50) 
               .addSnapshotListener { snapshot, error in

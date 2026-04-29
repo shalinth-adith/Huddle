@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import FirebaseAuth
 import FirebaseFirestore
 import Combine
@@ -13,24 +14,50 @@ import Combine
   class AuthService: ObservableObject {
       @Published var currentUser: AppUser?
       @Published var isAuthenticated = false
+      @Published var isCheckingAuth: Bool
+      private(set) var photoThumbnailBase64: String?
 
       private let db = Firestore.firestore()
 
       init() {
+          // Synchronous — reads local device storage, no network
+          isCheckingAuth = Auth.auth().currentUser != nil
           checkAuthStatus()
       }
 
       // Check if user is already signed in
       func checkAuthStatus() {
-          if let firebaseUser = Auth.auth().currentUser {
-              // User is signed in, fetch their profile
-              fetchUserProfile(userId: firebaseUser.uid)
+          guard let firebaseUser = Auth.auth().currentUser else {
+              return  // isCheckingAuth already false (set in init)
           }
+          fetchUserProfile(userId: firebaseUser.uid)
       }
 
       // Sign in anonymously
-      func signInAnonymously(displayName: String, completion: @escaping (Result<AppUser, Error>)
-  -> Void) {
+      func signInAnonymously(displayName: String, profileImage: UIImage? = nil, completion: @escaping (Result<AppUser, Error>) -> Void) {
+          DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+              var photoBase64: String? = nil
+              var thumbnailBase64: String? = nil
+              if let image = profileImage, let self {
+                  // Full quality stored in user doc — shown only for current user (in-memory)
+                  let full = self.resizeImage(image, maxDimension: 500)
+                  if let data = full.jpegData(compressionQuality: 0.92) {
+                      photoBase64 = data.base64EncodedString()
+                  }
+                  // Small thumbnail stored in family members array — keeps family doc small
+                  let thumb = self.resizeImage(image, maxDimension: 120)
+                  if let data = thumb.jpegData(compressionQuality: 0.75) {
+                      thumbnailBase64 = data.base64EncodedString()
+                  }
+              }
+              DispatchQueue.main.async {
+                  self?.photoThumbnailBase64 = thumbnailBase64
+                  self?._signInAnonymously(displayName: displayName, photoBase64: photoBase64, completion: completion)
+              }
+          }
+      }
+
+      private func _signInAnonymously(displayName: String, photoBase64: String?, completion: @escaping (Result<AppUser, Error>) -> Void) {
           Auth.auth().signInAnonymously { [weak self] authResult, error in
               if let error = error {
                   completion(.failure(error))
@@ -48,20 +75,31 @@ import Combine
                   PhoneNumber: nil,
                   email: nil,
                   displayName: displayName,
+                  photoBase64: photoBase64,
                   currentFamilyId: nil,
                   createdAt: Date()
               )
 
               self?.createUserProfile(user: newUser) { result in
                   switch result {
+                  case .failure(let error):
+                      completion(.failure(error))
                   case .success:
                       self?.currentUser = newUser
                       self?.isAuthenticated = true
                       completion(.success(newUser))
-                  case .failure(let error):
-                      completion(.failure(error))
                   }
               }
+          }
+      }
+
+private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+          let size = image.size
+          guard size.width > maxDimension || size.height > maxDimension else { return image }
+          let ratio = min(maxDimension / size.width, maxDimension / size.height)
+          let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+          return UIGraphicsImageRenderer(size: newSize).image { _ in
+              image.draw(in: CGRect(origin: .zero, size: newSize))
           }
       }
 
@@ -89,25 +127,14 @@ import Combine
 
       // Fetch user profile from Firestore
       func fetchUserProfile(userId: String) {
-          // Read from cache first for instant UI, then refresh from server
-          db.collection("users").document(userId).getDocument(source: .cache) { [weak self] snapshot, _ in
-              if let snapshot = snapshot, snapshot.exists, let data = snapshot.data() {
-                  do {
-                      let user = try Firestore.Decoder().decode(AppUser.self, from: data)
-                      DispatchQueue.main.async {
-                          self?.currentUser = user
-                          self?.isAuthenticated = true
-                      }
-                  } catch {}
-              }
-          }
-          db.collection("users").document(userId).getDocument(source: .server) { [weak self] snapshot, error in
-              if let error = error {
+          db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
+              if let error {
                   print("Error fetching user profile: \(error.localizedDescription)")
+                  DispatchQueue.main.async { self?.isCheckingAuth = false }
                   return
               }
               guard let data = snapshot?.data() else {
-                  print("User profile not found")
+                  DispatchQueue.main.async { self?.isCheckingAuth = false }
                   return
               }
               do {
@@ -115,9 +142,11 @@ import Combine
                   DispatchQueue.main.async {
                       self?.currentUser = user
                       self?.isAuthenticated = true
+                      self?.isCheckingAuth = false
                   }
               } catch {
                   print("Error decoding user: \(error.localizedDescription)")
+                  DispatchQueue.main.async { self?.isCheckingAuth = false }
               }
           }
       }
@@ -140,6 +169,16 @@ import Combine
                   self?.currentUser?.currentFamilyId = familyId
                   completion(.success(()))
               }
+          }
+      }
+
+      func clearFamilyId(completion: @escaping () -> Void) {
+          guard let userId = currentUser?.id else { completion(); return }
+          db.collection("users").document(userId).updateData([
+              "currentFamilyId": FieldValue.delete()
+          ]) { [weak self] _ in
+              self?.currentUser?.currentFamilyId = nil
+              completion()
           }
       }
 

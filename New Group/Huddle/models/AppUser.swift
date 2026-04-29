@@ -13,11 +13,12 @@ struct AppUser: Codable, Identifiable {
     var PhoneNumber: String?
     var email: String?
     var displayName: String
+    var photoBase64: String?
     var currentFamilyId: String?
     var createdAt: Date
-    
+
     enum CodingKeys: String, CodingKey {
-        case id, PhoneNumber, email, displayName, currentFamilyId, createdAt
+        case id, PhoneNumber, email, displayName, photoBase64, currentFamilyId, createdAt
     }
 }
  

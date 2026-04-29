@@ -12,22 +12,22 @@ class FamilyService  {
     }
 
  
-    func createFamily(familyName: String, creatorId: String, creatorName: String, completion:
+    func createFamily(familyName: String, creatorId: String, creatorName: String, creatorPhotoBase64: String? = nil, completion:
 @escaping (Result<Family, Error>) -> Void) {
         let familyCode = generateFamilyCode()
 
-     
+
         checkCodeExists(code: familyCode) { [weak self] exists in
             if exists {
-                
+
                 self?.createFamily(familyName: familyName, creatorId: creatorId, creatorName:
-creatorName, completion: completion)
+creatorName, creatorPhotoBase64: creatorPhotoBase64, completion: completion)
                 return
             }
 
-           
+
             let familyId = UUID().uuidString
-            let member = Member(id: creatorId, displayName: creatorName, joinedAt: Date())
+            let member = Member(id: creatorId, displayName: creatorName, photoBase64: creatorPhotoBase64, joinedAt: Date())
 
             let family = Family(
                 id: familyId,
@@ -68,7 +68,7 @@ error in
 
     
 
-    func joinFamily(code: String, userId: String, displayName: String, completion:
+    func joinFamily(code: String, userId: String, displayName: String, photoBase64: String? = nil, completion:
                     @escaping(Result < Family, Error>) -> Void) {
         db.collection("families")
              .whereField("code", isEqualTo: code)
@@ -77,7 +77,7 @@ error in
                      completion(.failure(error))
                      return
                  }
-             
+
 
                 guard let document = snapshot?.documents.first else {
                     let error = NSError(domain: "FamilyService", code: 404, userInfo:
@@ -88,8 +88,7 @@ error in
 
                 let familyId = document.documentID
 
-               
-                let newMember = Member(id: userId, displayName: displayName, joinedAt: Date())
+                let newMember = Member(id: userId, displayName: displayName, photoBase64: photoBase64, joinedAt: Date())
 
                 self?.db.collection("families").document(familyId).updateData([
                     "members": FieldValue.arrayUnion([newMember.toDictionary()])
@@ -112,20 +111,39 @@ error in
     }
 
    
+    func leaveFamily(userId: String, familyId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let ref = db.collection("families").document(familyId)
+        ref.getDocument { snapshot, error in
+            if let error = error { completion(.failure(error)); return }
+            guard let family = try? snapshot?.data(as: Family.self) else {
+                completion(.failure(NSError(domain: "FamilyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
+                return
+            }
+            let remaining = family.members.filter { $0.id != userId }.map { $0.toDictionary() }
+            ref.updateData(["members": remaining]) { error in
+                if let error = error { completion(.failure(error)); return }
+                completion(.success(()))
+            }
+        }
+    }
+
     func fetchFamily(familyId: String, completion: @escaping (Result<Family, Error>) -> Void) {
-        db.collection("families").document(familyId).getDocument(source: .default) { snapshot, error in
-            if let error = error {
-                completion(.failure(error))
+        let ref = db.collection("families").document(familyId)
+
+        // Serve from cache immediately so the feed appears without a spinner on re-open
+        ref.getDocument(source: .cache) { snapshot, _ in
+            if let snapshot, snapshot.exists, let family = try? snapshot.data(as: Family.self) {
+                completion(.success(family))
+            }
+        }
+
+        // Then refresh from server in the background
+        ref.getDocument(source: .server) { snapshot, error in
+            if let error { completion(.failure(error)); return }
+            guard let snapshot, snapshot.exists else {
+                completion(.failure(NSError(domain: "FamilyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
                 return
             }
-
-            guard let snapshot = snapshot, snapshot.exists else {
-                let error = NSError(domain: "FamilyService", code: 404, userInfo:
-[NSLocalizedDescriptionKey: "Family not found"])
-                completion(.failure(error))
-                return
-            }
-
             do {
                 let family = try snapshot.data(as: Family.self)
                 completion(.success(family))
@@ -134,15 +152,18 @@ error in
             }
         }
     }
+
 }
 
 
 extension Member {
     func toDictionary() -> [String: Any] {
-        return [
+        var dict: [String: Any] = [
             "id": id,
             "displayName": displayName,
             "joinedAt": Timestamp(date: joinedAt)
         ]
+        if let photoBase64 { dict["photoBase64"] = photoBase64 }
+        return dict
     }
 }

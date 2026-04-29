@@ -6,12 +6,15 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct NameInputView: View {
     @State private var name: String = ""
     @State private var isLoading: Bool = false
+    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var profileImage: UIImage? = nil
 
-    let onSubmit: (String) -> Void
+    let onSubmit: (String, UIImage?) -> Void
     var onBack: (() -> Void)? = nil
 
     var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
@@ -20,18 +23,16 @@ struct NameInputView: View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
 
-            // Background blurred accents
-            GeometryReader { geo in
+            // Background accents — no blur, renders instantly
+            ZStack {
                 Circle()
-                    .fill(Color.huddlePrimaryFixed.opacity(0.35))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 60)
-                    .offset(x: geo.size.width - 80, y: -60)
+                    .fill(Color.huddlePrimaryFixed.opacity(0.25))
+                    .frame(width: 260, height: 260)
+                    .offset(x: 140, y: -100)
                 Circle()
-                    .fill(Color.huddleSecondaryFixed.opacity(0.45))
-                    .frame(width: 160, height: 160)
-                    .blur(radius: 60)
-                    .offset(x: -40, y: geo.size.height - 80)
+                    .fill(Color.huddleSecondaryFixed.opacity(0.30))
+                    .frame(width: 200, height: 200)
+                    .offset(x: -120, y: 380)
             }
             .ignoresSafeArea()
 
@@ -68,25 +69,54 @@ struct NameInputView: View {
 
                     // Main card
                     VStack(spacing: 24) {
-                        // Avatar
-                        ZStack(alignment: .bottomTrailing) {
-                            Circle()
-                                .fill(Color.huddleSurface)
-                                .frame(width: 96, height: 96)
-                                .overlay(
-                                    Image(systemName: "person.circle")
-                                        .font(.system(size: 54))
-                                        .foregroundColor(Color.huddleOutlineVariant)
-                                )
-                            Circle()
-                                .fill(Color.huddleCoral)
-                                .frame(width: 32, height: 32)
-                                .overlay(
-                                    Image(systemName: "camera.fill")
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.white)
-                                )
-                                .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                        // Avatar — tap to pick a photo
+                        PhotosPicker(selection: $selectedItem, matching: .images) {
+                            ZStack(alignment: .bottomTrailing) {
+                                Circle()
+                                    .fill(Color.huddleSurface)
+                                    .frame(width: 96, height: 96)
+                                    .overlay(
+                                        Group {
+                                            if let img = profileImage {
+                                                Image(uiImage: img)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                            } else {
+                                                Image(systemName: "person.circle")
+                                                    .font(.system(size: 54))
+                                                    .foregroundColor(Color.huddleOutlineVariant)
+                                            }
+                                        }
+                                    )
+                                    .clipShape(Circle())
+
+                                Circle()
+                                    .fill(Color.huddleCoral)
+                                    .frame(width: 32, height: 32)
+                                    .overlay(
+                                        Image(systemName: "camera.fill")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.white)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .onChange(of: selectedItem) { newItem in
+                            Task.detached(priority: .userInitiated) {
+                                guard let data = try? await newItem?.loadTransferable(type: Data.self),
+                                      let raw = UIImage(data: data) else { return }
+                                let thumb = await Task.detached(priority: .userInitiated) {
+                                    // Proportional scale — no squishing of portrait/landscape photos
+                                    let maxDim: CGFloat = 300
+                                    let scale = min(maxDim / raw.size.width, maxDim / raw.size.height)
+                                    let newSize = CGSize(width: raw.size.width * scale, height: raw.size.height * scale)
+                                    return UIGraphicsImageRenderer(size: newSize).image { _ in
+                                        raw.draw(in: CGRect(origin: .zero, size: newSize))
+                                    }
+                                }.value
+                                await MainActor.run { profileImage = thumb }
+                            }
                         }
 
                         // Title + subtitle
@@ -96,13 +126,6 @@ struct NameInputView: View {
                                 .foregroundColor(Color.huddleTextPrimary)
                                 .multilineTextAlignment(.center)
                                 .tracking(-0.3)
-
-                            Text("This is how you will appear to your household and family members.")
-                                .font(.system(size: 16, weight: .regular))
-                                .foregroundColor(Color.huddleTextTertiary)
-                                .multilineTextAlignment(.center)
-                                .lineSpacing(3)
-                                .frame(maxWidth: 270)
                         }
 
                         // Input field
@@ -137,7 +160,7 @@ struct NameInputView: View {
                         Button(action: {
                             guard !trimmedName.isEmpty else { return }
                             isLoading = true
-                            onSubmit(trimmedName)
+                            onSubmit(trimmedName, profileImage)
                         }) {
                             Group {
                                 if isLoading {
@@ -194,5 +217,5 @@ struct NameInputView: View {
 }
 
 #Preview {
-    NameInputView(onSubmit: { name in print("Name submitted: \(name)") })
+    NameInputView(onSubmit: { name, _ in print("Name submitted: \(name)") })
 }

@@ -8,6 +8,7 @@ struct FamilyFeedView: View {
 
     @FocusState private var isMessageFieldFocused: Bool
     @State private var selectedTab: FeedTab = .home
+    @State private var showLeaveAlert = false
 
     enum FeedTab: CaseIterable {
         case home, messages, shopping, family
@@ -82,6 +83,12 @@ struct FamilyFeedView: View {
             viewModel.loadPinnedMessages()
         }
         .onDisappear { viewModel.cleanup() }
+        .alert("Leave Group?", isPresented: $showLeaveAlert) {
+            Button("Leave", role: .destructive) { viewModel.leaveGroup() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You will be permanently removed from this group. Other members will be notified.")
+        }
         .onChange(of: openToShopping) { newValue in
             if newValue {
                 selectedTab = .shopping
@@ -162,14 +169,11 @@ struct FamilyFeedView: View {
                         .clipShape(Circle())
                 }
                 Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .family } }) {
-                    Circle()
-                        .fill(Color.huddlePrimaryFixed)
-                        .frame(width: 36, height: 36)
-                        .overlay(
-                            Text(getInitials(from: authService.currentUser?.displayName ?? ""))
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.huddleCoral)
-                        )
+                    MemberAvatarView(
+                        name: authService.currentUser?.displayName ?? "",
+                        photoBase64: authService.currentUser?.photoBase64,
+                        size: 36
+                    )
                 }
             }
         }
@@ -259,15 +263,7 @@ struct FamilyFeedView: View {
                 HStack(spacing: 14) {
                     ForEach(unique) { member in
                         VStack(spacing: 6) {
-                            Circle()
-                                .fill(Color.huddleCoral.opacity(0.12))
-                                .frame(width: 48, height: 48)
-                                .overlay(
-                                    Text(getInitials(from: member.displayName))
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(Color.huddleCoral)
-                                )
-                                .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
+                            MemberAvatarView(name: member.displayName, photoBase64: member.photoBase64, size: 48)
                             Text(member.displayName.components(separatedBy: " ").first ?? member.displayName)
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(Color.huddleTextSecondary)
@@ -404,7 +400,7 @@ struct FamilyFeedView: View {
                     .padding(.vertical, 4)
             } else {
                 VStack(spacing: 8) {
-                    ForEach(Array(viewModel.messages.suffix(3))) { message in
+                    ForEach(Array(viewModel.messages.filter { $0.type != .system }.suffix(3))) { message in
                         messageBubble(message: message)
                     }
                 }
@@ -437,7 +433,11 @@ struct FamilyFeedView: View {
                     .frame(maxWidth: .infinity)
                 } else {
                     ForEach(viewModel.messages) { message in
-                        messageBubble(message: message)
+                        if message.type == .system {
+                            systemMessageView(message: message)
+                        } else {
+                            messageBubble(message: message)
+                        }
                     }
                 }
             }
@@ -447,21 +447,24 @@ struct FamilyFeedView: View {
         }
     }
 
+    private func systemMessageView(message: HuddleMessage) -> some View {
+        Text(message.content)
+            .font(.system(size: 12))
+            .foregroundColor(Color.huddleTextTertiary)
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, 2)
+    }
+
     private func messageBubble(message: HuddleMessage) -> some View {
         let isMe = message.senderName == authService.currentUser?.displayName
+        let senderPhotoBase64 = viewModel.family?.members.first(where: { $0.displayName == message.senderName })?.photoBase64
 
         return HStack(alignment: .top, spacing: 8) {
             if isMe { Spacer(minLength: 48) }
 
             if !isMe {
-                Circle()
-                    .fill(Color.huddleCoral.opacity(0.12))
-                    .frame(width: 30, height: 30)
-                    .overlay(
-                        Text(getInitials(from: message.senderName))
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Color.huddleCoral)
-                    )
+                MemberAvatarView(name: message.senderName, photoBase64: senderPhotoBase64, size: 30)
             }
 
             VStack(alignment: isMe ? .trailing : .leading, spacing: 3) {
@@ -670,14 +673,7 @@ struct FamilyFeedView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(unique.enumerated()), id: \.element.id) { index, member in
                             HStack(spacing: 12) {
-                                Circle()
-                                    .fill(Color.huddleCoral.opacity(0.12))
-                                    .frame(width: 40, height: 40)
-                                    .overlay(
-                                        Text(getInitials(from: member.displayName))
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundColor(Color.huddleCoral)
-                                    )
+                                MemberAvatarView(name: member.displayName, photoBase64: member.photoBase64, size: 40)
                                 Text(member.displayName)
                                     .font(.system(size: 15))
                                     .foregroundColor(Color.huddleTextPrimary)
@@ -696,7 +692,7 @@ struct FamilyFeedView: View {
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
 
                 // Sign out
-                Button(action: { authService.signOut() }) {
+                Button(action: { showLeaveAlert = true }) {
                     HStack(spacing: 8) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .font(.system(size: 15))

@@ -34,7 +34,7 @@ class JoinFamilyViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
         
-        familyService.joinFamily(code:familyCode,userId: userId , displayName: userName){ result in
+        familyService.joinFamily(code: familyCode, userId: userId, displayName: userName, photoBase64: authService.photoThumbnailBase64) { result in
             self.isLoading = false
             switch result {
             case .success(let family):
