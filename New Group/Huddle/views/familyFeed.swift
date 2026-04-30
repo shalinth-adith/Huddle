@@ -338,7 +338,10 @@ struct FamilyFeedView: View {
                 HStack(spacing: 14) {
                     ForEach(unique) { member in
                         VStack(spacing: 6) {
-                            MemberAvatarView(name: member.displayName, photoBase64: member.photoBase64, size: 48)
+                            let memberPhoto = member.id == authService.currentUser?.id
+                                ? (authService.currentUser?.photoBase64 ?? member.photoBase64)
+                                : member.photoBase64
+                            MemberAvatarView(name: member.displayName, photoBase64: memberPhoto, size: 48)
                             Text(member.displayName.components(separatedBy: " ").first ?? member.displayName)
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(Color.huddleTextSecondary)
@@ -555,8 +558,8 @@ struct FamilyFeedView: View {
     }
 
     private func messageBubble(message: HuddleMessage) -> some View {
-        let isMe = message.senderName == authService.currentUser?.displayName
-        let senderPhotoBase64 = viewModel.family?.members.first(where: { $0.displayName == message.senderName })?.photoBase64
+        let isMe = message.senderID == authService.currentUser?.id
+        let senderPhotoBase64 = viewModel.family?.members.first(where: { $0.id == message.senderID })?.photoBase64
 
         return HStack(alignment: .top, spacing: 8) {
             if isMe { Spacer(minLength: 48) }
@@ -786,7 +789,10 @@ struct FamilyFeedView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(unique.enumerated()), id: \.element.id) { index, member in
                             HStack(spacing: 12) {
-                                MemberAvatarView(name: member.displayName, photoBase64: member.photoBase64, size: 40)
+                                let memberPhoto = member.id == authService.currentUser?.id
+                                    ? (authService.currentUser?.photoBase64 ?? member.photoBase64)
+                                    : member.photoBase64
+                                MemberAvatarView(name: member.displayName, photoBase64: memberPhoto, size: 40)
                                 Text(member.displayName)
                                     .font(.system(size: 15))
                                     .foregroundColor(Color.huddleTextPrimary)
