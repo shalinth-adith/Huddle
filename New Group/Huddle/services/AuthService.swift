@@ -127,7 +127,21 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
 
       // Fetch user profile from Firestore
       func fetchUserProfile(userId: String) {
-          db.collection("users").document(userId).getDocument { [weak self] snapshot, error in
+          let ref = db.collection("users").document(userId)
+
+          // Serve from cache first so the app appears instantly on re-launch
+          ref.getDocument(source: .cache) { [weak self] snapshot, _ in
+              guard let snapshot, snapshot.exists, let data = snapshot.data(),
+                    let user = try? Firestore.Decoder().decode(AppUser.self, from: data) else { return }
+              DispatchQueue.main.async {
+                  self?.currentUser = user
+                  self?.isAuthenticated = true
+                  self?.isCheckingAuth = false
+              }
+          }
+
+          // Refresh from server in background (keeps data fresh without blocking UI)
+          ref.getDocument(source: .server) { [weak self] snapshot, error in
               if let error {
                   print("Error fetching user profile: \(error.localizedDescription)")
                   DispatchQueue.main.async { self?.isCheckingAuth = false }

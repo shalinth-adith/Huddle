@@ -69,6 +69,11 @@
               switch result {
               case .success(let fetchedMessages):
                   self.messages = fetchedMessages
+                  let widgetPings = fetchedMessages
+                      .filter { $0.type == .ping }
+                      .suffix(1)
+                      .map { SharedDataManager.WidgetPing(content: $0.content, senderName: $0.senderName ?? "Unknown", sentAt: $0.createdAt) }
+                  SharedDataManager.savePings(Array(widgetPings))
               case .failure(_):
                   break
               }
@@ -128,6 +133,13 @@
                   break
               }
           }
+      }
+
+      func sendPing(content: String) {
+          guard let familyId = authService.currentUser?.currentFamilyId,
+                let userId = authService.currentUser?.id,
+                let userName = authService.currentUser?.displayName else { return }
+          messageService.sendPingMessage(familyId: familyId, content: content, senderId: userId, senderName: userName) { _ in }
       }
 
       func loadPinnedMessages() {

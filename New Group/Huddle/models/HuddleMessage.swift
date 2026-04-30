@@ -13,6 +13,7 @@ enum MessageType: String, Codable {
     case photo
     case Shopping
     case system
+    case ping
 }
 
 struct HuddleMessage: Codable, Identifiable {

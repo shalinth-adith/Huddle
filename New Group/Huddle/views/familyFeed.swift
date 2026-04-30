@@ -12,6 +12,17 @@ struct FamilyFeedView: View {
     @State private var showRenameAlert = false
     @State private var newFamilyName = ""
     @State private var showGroupSwitcher = false
+    @State private var showPingTray = false
+    @State private var customPingText = ""
+
+    private let pingOptions: [(emoji: String, label: String)] = [
+        ("🏠", "I'm home"),
+        ("🚗", "On my way"),
+        ("🏫", "Leaving school"),
+        ("⏰", "Running late"),
+        ("🛒", "At the store"),
+        ("📍", "Be there soon")
+    ]
 
     enum FeedTab: CaseIterable {
         case home, messages, shopping, family
@@ -70,6 +81,11 @@ struct FamilyFeedView: View {
                         }
                         tabBar
                     }
+                }
+                .sheet(isPresented: $showPingTray) {
+                    pingTrayView
+                        .presentationDetents([.medium])
+                        .presentationDragIndicator(.visible)
                 }
             } else {
                 Text("Error loading family")
@@ -494,6 +510,8 @@ struct FamilyFeedView: View {
                     ForEach(viewModel.messages) { message in
                         if message.type == .system {
                             systemMessageView(message: message)
+                        } else if message.type == .ping {
+                            pingCard(message: message)
                         } else {
                             messageBubble(message: message)
                         }
@@ -513,6 +531,27 @@ struct FamilyFeedView: View {
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
             .padding(.vertical, 2)
+    }
+
+    private func pingCard(message: HuddleMessage) -> some View {
+        HStack(spacing: 12) {
+            Text(String(message.content.prefix(2)))
+                .font(.system(size: 28))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(message.content.dropFirst(2).trimmingCharacters(in: .whitespaces))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                Text("\(message.senderName) · \(formatTime(message.createdAt))")
+                    .font(.caption)
+                    .foregroundColor(Color.huddleTextTertiary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background(Color.huddleCoral.opacity(0.10))
+        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.huddleCoral.opacity(0.25), lineWidth: 1))
+        .padding(.vertical, 4)
     }
 
     private func messageBubble(message: HuddleMessage) -> some View {
@@ -811,8 +850,90 @@ struct FamilyFeedView: View {
 
     // MARK: - Message Input
 
+    private var pingTrayView: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Send a ping")
+                .font(.headline)
+                .padding(.horizontal)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                ForEach(pingOptions, id: \.label) { option in
+                    Button {
+                        viewModel.sendPing(content: "\(option.emoji) \(option.label)")
+                        showPingTray = false
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text(option.emoji).font(.title2)
+                            Text(option.label)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(Color.huddleSurface)
+                        .cornerRadius(12)
+                    }
+                    .foregroundColor(Color.huddleTextPrimary)
+                }
+            }
+            .padding(.horizontal)
+
+            Divider().padding(.horizontal)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Custom location")
+                    .font(.caption)
+                    .foregroundColor(Color.huddleTextTertiary)
+                    .padding(.horizontal)
+
+                HStack(spacing: 10) {
+                    HStack(spacing: 6) {
+                        Text("📍")
+                            .font(.system(size: 20))
+                        TextField("Where are you going?", text: $customPingText)
+                            .font(.subheadline)
+                            .autocorrectionDisabled(true)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.huddleSurface)
+                    .cornerRadius(12)
+
+                    Button {
+                        let trimmed = customPingText.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty else { return }
+                        viewModel.sendPing(content: "📍 \(trimmed)")
+                        customPingText = ""
+                        showPingTray = false
+                    } label: {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                customPingText.trimmingCharacters(in: .whitespaces).isEmpty
+                                    ? Color.huddleTextTertiary.opacity(0.3)
+                                    : Color.huddleCoral
+                            )
+                            .clipShape(Circle())
+                    }
+                    .disabled(customPingText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(.horizontal)
+            }
+        }
+        .padding(.top, 20)
+        .padding(.bottom, 8)
+    }
+
     private var messageInputBar: some View {
         HStack(spacing: 10) {
+            Button { showPingTray = true } label: {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(Color.huddleCoral)
+            }
+
             HStack(spacing: 8) {
                 TextField("Message your family...", text: $messageText)
                     .font(.system(size: 15))

@@ -146,7 +146,7 @@ error in
                 completion(.success(()))
             }
         }
-    } 
+    }
 
     func renameFamily(familyId: String, newName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         db.collection("families").document(familyId).updateData(["name": newName]) { error in

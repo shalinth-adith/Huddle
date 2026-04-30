@@ -15,6 +15,7 @@ struct SharedDataManager {
   
     private static let pinnedMessagesKey = "pinnedMessages"
     private static let shoppingItemsKey = "shoppingItems"
+    private static let pingsKey = "pings"
       
     static var sharedDefaults: UserDefaults? {
     return UserDefaults(suiteName: appGroupID)
@@ -25,9 +26,15 @@ struct WidgetPinnedMessage: Codable {
     let text: String
     let senderName: String
 }
-  
+
 struct WidgetShoppingItem: Codable {
     let text: String
+}
+
+struct WidgetPing: Codable {
+    let content: String
+    let senderName: String
+    let sentAt: Date
 }
 static func reloadWidget() {
           WidgetCenter.shared.reloadAllTimelines()
@@ -67,6 +74,24 @@ static func loadPinnedMessages() -> [WidgetPinnedMessage] {
                 }
             }
   
+static func savePings(_ pings: [WidgetPing]) {
+    do {
+        let data = try JSONEncoder().encode(pings)
+        sharedDefaults?.set(data, forKey: pingsKey)
+        reloadWidget()
+    } catch {}
+}
+
+static func loadPings() -> [WidgetPing] {
+    guard let data = sharedDefaults?.data(forKey: pingsKey) else { return [] }
+    return (try? JSONDecoder().decode([WidgetPing].self, from: data)) ?? []
+}
+
+static func latestActivePing() -> WidgetPing? {
+    guard let ping = loadPings().first else { return nil }
+    return Date().timeIntervalSince(ping.sentAt) < 86400 ? ping : nil
+}
+
 static func loadShoppingItems() -> [WidgetShoppingItem] {
         guard let data = sharedDefaults?.data(forKey: shoppingItemsKey) else {
                 return []

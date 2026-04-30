@@ -97,7 +97,10 @@ struct JoinFamily: View {
                             .foregroundColor(Color.huddleTextSecondary)
                             .padding(.leading, 4)
 
-                        TextField("H-000000", text: $viewModel.familyCode)
+                        TextField("H-000000", text: Binding(
+                            get: { viewModel.familyCode },
+                            set: { viewModel.familyCode = viewModel.formatted($0) }
+                        ))
                             .font(.system(size: 22, weight: .semibold))
                             .foregroundColor(Color.huddleTextPrimary)
                             .multilineTextAlignment(.center)
@@ -111,13 +114,10 @@ struct JoinFamily: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
                                     .stroke(
-                                        viewModel.familyCode.isEmpty ? Color.clear : Color.huddleCoral,
+                                        viewModel.familyCode == "H-" ? Color.clear : Color.huddleCoral,
                                         lineWidth: 2
                                     )
                             )
-                            .onChange(of: viewModel.familyCode) { newValue in
-                                viewModel.formatFamilyCode(newValue)
-                            }
                     }
 
                     if let error = viewModel.errorMessage {

@@ -13,36 +13,46 @@ struct Provider: TimelineProvider {
           HuddleEntry(
               date: Date(),
               pinnedMessages: [
-                  SharedDataManager.WidgetPinnedMessage(text: "Remember to call grandma!", senderName:
-  "Mom")
+                  SharedDataManager.WidgetPinnedMessage(text: "Remember to call grandma!", senderName: "Mom")
               ],
               shoppingItems: [
                   SharedDataManager.WidgetShoppingItem(text: "Milk"),
                   SharedDataManager.WidgetShoppingItem(text: "Bread")
+              ],
+              pings: [
+                  SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date())
               ]
           )
       }
-                                                                                                       
+
       func getSnapshot(in context: Context, completion: @escaping (HuddleEntry) -> ()) {
           let entry = HuddleEntry(
               date: Date(),
               pinnedMessages: SharedDataManager.loadPinnedMessages(),
-              shoppingItems: SharedDataManager.loadShoppingItems()
+              shoppingItems: SharedDataManager.loadShoppingItems(),
+              pings: SharedDataManager.loadPings()
           )
           completion(entry)
       }
-                                                                                                       
+
       func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
+          let pings = SharedDataManager.loadPings()
           let entry = HuddleEntry(
               date: Date(),
               pinnedMessages: SharedDataManager.loadPinnedMessages(),
-              shoppingItems: SharedDataManager.loadShoppingItems()
+              shoppingItems: SharedDataManager.loadShoppingItems(),
+              pings: pings
           )
-                                                                                                       
-          // Refresh every 15 minutes
-          let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
-          let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-          completion(timeline)
+          // If a fresh ping exists, schedule refresh at its 24h expiry so it disappears on time
+          let refreshDate: Date
+          if let ping = pings.first {
+              let expiry = ping.sentAt.addingTimeInterval(86400)
+              let fifteenMin = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
+              refreshDate = min(expiry, fifteenMin)
+          } else {
+              refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
+          }
+          completion(Timeline(entries: [entry], policy: .after(refreshDate)))
       }
   }
 
@@ -52,10 +62,11 @@ struct Provider: TimelineProvider {
 
 
 struct HuddleEntry: TimelineEntry {
-      let date: Date
-      let pinnedMessages: [SharedDataManager.WidgetPinnedMessage]
-      let shoppingItems: [SharedDataManager.WidgetShoppingItem]
-  }
+    let date: Date
+    let pinnedMessages: [SharedDataManager.WidgetPinnedMessage]
+    let shoppingItems: [SharedDataManager.WidgetShoppingItem]
+    let pings: [SharedDataManager.WidgetPing]
+}
 
 struct HuddleWidgetEntryView: View {
     var entry: Provider.Entry
@@ -85,11 +96,32 @@ struct HuddleWidgetEntryView: View {
     
     var smallWidgetContent: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if !entry.pinnedMessages.isEmpty {
+            if let ping = entry.pings.first, Date().timeIntervalSince(ping.sentAt) < 86400 {
+                Text("📍 Latest ping")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(.gray)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(ping.content)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(.black)
+                        .lineLimit(1)
+                    HStack(spacing: 2) {
+                        Text(ping.senderName)
+                            .font(.system(size: 9))
+                            .foregroundColor(.gray)
+                        Text("·")
+                            .font(.system(size: 9))
+                            .foregroundColor(.gray)
+                        Text(ping.sentAt, style: .relative)
+                            .font(.system(size: 9))
+                            .foregroundColor(.gray)
+                            .lineLimit(1)
+                    }
+                }
+            } else if !entry.pinnedMessages.isEmpty {
                 Text("📌 Pinned")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.gray)
-                
                 ForEach(entry.pinnedMessages.prefix(2), id: \.text) { message in
                     Text(message.text)
                         .font(.system(size: 12, design: .rounded))
@@ -100,7 +132,6 @@ struct HuddleWidgetEntryView: View {
                 Text("🛒 Shopping")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundColor(.gray)
-                
                 ForEach(entry.shoppingItems.prefix(3), id: \.text) { item in
                     HStack(spacing: 4) {
                         Image(systemName: "circle")
@@ -123,23 +154,46 @@ struct HuddleWidgetEntryView: View {
     // MARK: - Medium Widget
 var mediumWidgetContent: some View {
     HStack(alignment: .top, spacing: 16) {
-        // Pinned Messages - taps open app
+        // Pings (if any) or Pinned Messages
         Link(destination: URL(string: "huddle://open")!) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("📌 Pinned")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.huddleCoral)
-                
-                if entry.pinnedMessages.isEmpty {
-                    Text("No pins")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
-                } else {
-                    ForEach(entry.pinnedMessages.prefix(3), id: \.text) { message in
-                        Text("• \(message.text)")
-                            .font(.system(size: 11, design: .rounded))
+                if let ping = entry.pings.first, Date().timeIntervalSince(ping.sentAt) < 86400 {
+                    Text("📍 Latest Ping")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(ping.content)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
                             .foregroundColor(.black)
                             .lineLimit(1)
+                        HStack(spacing: 2) {
+                            Text(ping.senderName)
+                                .font(.system(size: 9))
+                                .foregroundColor(.gray)
+                            Text("·")
+                                .font(.system(size: 9))
+                                .foregroundColor(.gray)
+                            Text(ping.sentAt, style: .relative)
+                                .font(.system(size: 9))
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                    }
+                } else {
+                    Text("📌 Pinned")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.huddleCoral)
+                    if entry.pinnedMessages.isEmpty {
+                        Text("No pins")
+                            .font(.system(size: 11))
+                            .foregroundColor(.gray)
+                    } else {
+                        ForEach(entry.pinnedMessages.prefix(3), id: \.text) { message in
+                            Text("• \(message.text)")
+                                .font(.system(size: 11, design: .rounded))
+                                .foregroundColor(.black)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }
@@ -202,32 +256,34 @@ var mediumWidgetContent: some View {
         HuddleEntry(
             date: .now,
             pinnedMessages: [
-                SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom"),
-                SharedDataManager.WidgetPinnedMessage(text: "Call grandma Sunday", senderName: "Dad")
+                SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom")
             ],
             shoppingItems: [
                 SharedDataManager.WidgetShoppingItem(text: "Milk"),
-                SharedDataManager.WidgetShoppingItem(text: "Bread"),
-                SharedDataManager.WidgetShoppingItem(text: "Eggs")
+                SharedDataManager.WidgetShoppingItem(text: "Bread")
+            ],
+            pings: [
+                SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date().addingTimeInterval(-300))
             ]
         )
     }
 
-    
-#Preview(as: .systemMedium) {
+    #Preview(as: .systemMedium) {
         HuddleWidget()
     } timeline: {
         HuddleEntry(
             date: .now,
             pinnedMessages: [
                 SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom"),
-                SharedDataManager.WidgetPinnedMessage(text: "Call grandma Sunday", senderName: "Dad"),
                 SharedDataManager.WidgetPinnedMessage(text: "Dentist Monday 10am", senderName: "Mom")
             ],
             shoppingItems: [
                 SharedDataManager.WidgetShoppingItem(text: "Milk"),
                 SharedDataManager.WidgetShoppingItem(text: "Bread"),
                 SharedDataManager.WidgetShoppingItem(text: "Eggs")
+            ],
+            pings: [
+                SharedDataManager.WidgetPing(content: "📍 At the gym", senderName: "Mom", sentAt: Date().addingTimeInterval(-240))
             ]
         )
     }
