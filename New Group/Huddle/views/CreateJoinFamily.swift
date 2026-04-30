@@ -11,6 +11,7 @@ struct CreateJoinFamily: View {
     @EnvironmentObject var authService: AuthService
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
+    @State private var showSignOutAlert = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -37,6 +38,12 @@ struct CreateJoinFamily: View {
         .sheet(isPresented: $showJoinFamily) {
             JoinFamily(authService: authService).environmentObject(authService)
         }
+        .alert("Sign Out?", isPresented: $showSignOutAlert) {
+            Button("Sign Out", role: .destructive) { authService.signOut() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll be signed out and returned to the welcome screen.")
+        }
     }
 
     private var headerBar: some View {
@@ -50,12 +57,14 @@ struct CreateJoinFamily: View {
                     .foregroundColor(Color.huddleCoral)
             }
             Spacer()
-            Image(systemName: "bell")
-                .font(.system(size: 20))
-                .foregroundColor(Color.huddleCoral)
-                .padding(8)
-                .background(Color.huddleBackground)
-                .clipShape(Circle())
+            Button(action: { showSignOutAlert = true }) {
+                Image(systemName: "rectangle.portrait.and.arrow.left")
+                    .font(.system(size: 18))
+                    .foregroundColor(Color.huddleTextTertiary)
+                    .padding(8)
+                    .background(Color.huddleSecondaryFixed)
+                    .clipShape(Circle())
+            }
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 16)

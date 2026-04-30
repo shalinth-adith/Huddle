@@ -214,4 +214,12 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
               print("Error signing out: \(error.localizedDescription)")
           }
       }
+
+      // Exit the current room without removing group membership — goes back to CreateJoinFamily
+      func exitRoom() {
+          guard let userId = currentUser?.id else { return }
+          currentUser?.currentFamilyId = nil
+          db.collection("users").document(userId)
+              .updateData(["currentFamilyId": FieldValue.delete()]) { _ in }
+      }
   }
