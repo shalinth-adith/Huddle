@@ -58,12 +58,13 @@ struct CreateJoinFamily: View {
             }
             Spacer()
             Button(action: { showSignOutAlert = true }) {
-                Image(systemName: "rectangle.portrait.and.arrow.left")
-                    .font(.system(size: 18))
+                Text("Sign Out")
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundColor(Color.huddleTextTertiary)
-                    .padding(8)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
                     .background(Color.huddleSecondaryFixed)
-                    .clipShape(Circle())
+                    .cornerRadius(20)
             }
         }
         .padding(.horizontal, 24)

@@ -9,7 +9,6 @@ struct FamilyFeedView: View {
     @FocusState private var isMessageFieldFocused: Bool
     @State private var selectedTab: FeedTab = .home
     @State private var showLeaveAlert = false
-    @State private var showExitRoomAlert = false
     @State private var showRenameAlert = false
     @State private var newFamilyName = ""
     @State private var showGroupSwitcher = false
@@ -103,13 +102,7 @@ struct FamilyFeedView: View {
             viewModel.loadPinnedMessages()
         }
         .onDisappear { viewModel.cleanup() }
-        .alert("Sign Out of Room?", isPresented: $showExitRoomAlert) {
-            Button("Sign Out", role: .destructive) { authService.exitRoom() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("You'll return to the room selection screen. Your membership is kept — you can rejoin anytime.")
-        }
-        .alert("Leave Group?", isPresented: $showLeaveAlert) {
+        .alert("Leave Huddle?", isPresented: $showLeaveAlert) {
             Button("Leave", role: .destructive) { viewModel.leaveGroup() }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -834,27 +827,11 @@ struct FamilyFeedView: View {
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
 
-                // Sign out of room (soft exit — keeps membership)
-                Button(action: { showExitRoomAlert = true }) {
+                Button(action: { showLeaveAlert = true }) {
                     HStack(spacing: 8) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .font(.system(size: 15))
-                        Text("Sign Out of Room")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .foregroundColor(Color.huddleTextSecondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(Color.huddleSecondaryFixed)
-                    .cornerRadius(12)
-                }
-
-                // Leave group (destructive — removes membership)
-                Button(action: { showLeaveAlert = true }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "person.badge.minus")
-                            .font(.system(size: 15))
-                        Text("Leave Group")
+                        Text("Leave Huddle")
                             .font(.system(size: 15, weight: .semibold))
                     }
                     .foregroundColor(Color(hex: "BA1A1A"))
