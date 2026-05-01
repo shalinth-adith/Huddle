@@ -310,9 +310,11 @@
           guard let uid = authService.currentUser?.id,
                 let familyId = family.id else { return }
 
+          let groupKeys = family.encryptedGroupKeys ?? [:]
+
           // Decrypt group key from Firestore if not already in Keychain
           if EncryptionService.loadGroupKey(familyId: familyId) == nil,
-             let encryptedForMe = family.encryptedGroupKeys[uid],
+             let encryptedForMe = groupKeys[uid],
              let privateKey = try? EncryptionService.loadPrivateKey() {
               let candidateKeys = family.members.compactMap { $0.publicKey }
               if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
@@ -325,7 +327,7 @@
                 let privateKey = try? EncryptionService.loadPrivateKey() else { return }
 
           for member in family.members {
-              guard family.encryptedGroupKeys[member.id] == nil,
+              guard groupKeys[member.id] == nil,
                     let memberPublicKey = member.publicKey,
                     let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
               db.collection("families").document(familyId)

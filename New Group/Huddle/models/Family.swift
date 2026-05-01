@@ -15,7 +15,7 @@ struct Family: Codable , Identifiable {
     var createdAt : Date?
     var members : [Member]
     var adminId: String?
-    var encryptedGroupKeys: [String: String] = [:]
+    var encryptedGroupKeys: [String: String]?
 
     enum CodingKeys: String, CodingKey {
         case id, name, code, createdAt, members, adminId, encryptedGroupKeys

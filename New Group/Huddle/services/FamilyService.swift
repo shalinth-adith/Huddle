@@ -26,14 +26,14 @@ creatorName, creatorPhotoBase64: creatorPhotoBase64, creatorPublicKey: creatorPu
             let familyId = UUID().uuidString
             let member = Member(id: creatorId, displayName: creatorName, photoBase64: creatorPhotoBase64, joinedAt: Date(), publicKey: creatorPublicKey)
 
-            var encryptedGroupKeys: [String: String] = [:]
             let groupKey = EncryptionService.generateGroupKey()
             try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
 
+            var encryptedGroupKeys: [String: String]? = nil
             if let creatorPubKey = creatorPublicKey,
                let privateKey = try? EncryptionService.loadPrivateKey(),
                let encryptedKey = try? EncryptionService.encryptGroupKey(groupKey, for: creatorPubKey, senderPrivateKey: privateKey) {
-                encryptedGroupKeys[creatorId] = encryptedKey
+                encryptedGroupKeys = [creatorId: encryptedKey]
             }
 
             let family = Family(
