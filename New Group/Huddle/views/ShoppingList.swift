@@ -6,6 +6,7 @@ struct ShoppingList: View {
 
     @StateObject private var viewModel: ShoppingListViewModel
     @State private var newItem: String = ""
+    @State private var itemToDelete: HuddleMessage?
     @FocusState private var isInputFocused: Bool
 
     let family: Family
@@ -35,6 +36,20 @@ struct ShoppingList: View {
         .buttonStyle(.plain)
         .preferredColorScheme(.light)
         .onAppear { viewModel.loadItems() }
+        .alert("Delete Item?", isPresented: Binding(
+            get: { itemToDelete != nil },
+            set: { if !$0 { itemToDelete = nil } }
+        )) {
+            Button("Delete", role: .destructive) {
+                if let item = itemToDelete { viewModel.deleteItem(item: item) }
+                itemToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { itemToDelete = nil }
+        } message: {
+            if let item = itemToDelete {
+                Text("\"\(item.content)\" will be removed from the list.")
+            }
+        }
     }
 
     // MARK: - Header
@@ -150,7 +165,10 @@ struct ShoppingList: View {
 
     private func shoppingItemRow(item: HuddleMessage) -> some View {
         HStack(spacing: 12) {
-            Button(action: { viewModel.toggleComplete(item: item) }) {
+            Button(action: {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                viewModel.toggleComplete(item: item)
+            }) {
                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 22))
                     .foregroundColor(item.isCompleted ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.4))
@@ -169,7 +187,10 @@ struct ShoppingList: View {
 
             Spacer()
 
-            Button(action: { viewModel.deleteItem(item: item) }) {
+            Button(action: {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                itemToDelete = item
+            }) {
                 Image(systemName: "trash")
                     .font(.system(size: 14))
                     .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
@@ -191,6 +212,7 @@ struct ShoppingList: View {
     private func addItem() {
         guard let userId = authService.currentUser?.id,
               let userName = authService.currentUser?.displayName else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         viewModel.addItem(content: newItem, senderId: userId, senderName: userName)
         newItem = ""
     }

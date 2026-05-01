@@ -13,15 +13,17 @@ struct FamilyFeedView: View {
     @State private var newFamilyName = ""
     @State private var showGroupSwitcher = false
     @State private var showPingTray = false
-    @State private var customPingText = ""
+    @State private var messageToDelete: HuddleMessage?
+    @State private var memberToRemove: Member?
+    @State private var showCopiedToast = false
 
-    private let pingOptions: [(emoji: String, label: String)] = [
-        ("🏠", "I'm home"),
-        ("🚗", "On my way"),
-        ("🏫", "Leaving school"),
-        ("⏰", "Running late"),
-        ("🛒", "At the store"),
-        ("📍", "Be there soon")
+    private let pingOptions: [String] = [
+        "I'm home",
+        "On my way",
+        "Leaving school",
+        "Running late",
+        "At the store",
+        "Be there soon"
     ]
 
     enum FeedTab: CaseIterable {
@@ -66,6 +68,23 @@ struct FamilyFeedView: View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
 
+            if showCopiedToast {
+                VStack {
+                    Spacer()
+                    Text("Code copied!")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(24)
+                        .padding(.bottom, 100)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                }
+                .zIndex(1)
+                .animation(.easeInOut(duration: 0.2), value: showCopiedToast)
+            }
+
             if viewModel.isLoading {
                 ProgressView()
             } else if let family = viewModel.family {
@@ -82,15 +101,15 @@ struct FamilyFeedView: View {
                         tabBar
                     }
                 }
-                .sheet(isPresented: $showPingTray) {
-                    pingTrayView
-                        .presentationDetents([.medium])
-                        .presentationDragIndicator(.visible)
-                }
             } else {
                 Text("Error loading family")
                     .foregroundColor(Color.huddleTextTertiary)
             }
+        }
+        .sheet(isPresented: $showPingTray) {
+            pingTrayView
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
         }
         .preferredColorScheme(.light)
         .buttonStyle(.plain)
@@ -100,6 +119,10 @@ struct FamilyFeedView: View {
             viewModel.loadMessages()
             viewModel.loadShoppingItems()
             viewModel.loadPinnedMessages()
+            if selectedTab == .messages { viewModel.markMessagesAsRead() }
+        }
+        .onChange(of: selectedTab) { tab in
+            if tab == .messages { viewModel.markMessagesAsRead() }
         }
         .onDisappear { viewModel.cleanup() }
         .alert("Leave Huddle?", isPresented: $showLeaveAlert) {
@@ -112,6 +135,32 @@ struct FamilyFeedView: View {
             TextField("Group name", text: $newFamilyName)
             Button("Save") { viewModel.renameFamily(newFamilyName) }
             Button("Cancel", role: .cancel) {}
+        }
+        .alert("Delete Message?", isPresented: Binding(
+            get: { messageToDelete != nil },
+            set: { if !$0 { messageToDelete = nil } }
+        )) {
+            Button("Delete", role: .destructive) {
+                if let msg = messageToDelete { viewModel.deleteMessage(msg) }
+                messageToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { messageToDelete = nil }
+        } message: {
+            Text("This message will be permanently deleted.")
+        }
+        .alert("Remove Member?", isPresented: Binding(
+            get: { memberToRemove != nil },
+            set: { if !$0 { memberToRemove = nil } }
+        )) {
+            Button("Remove", role: .destructive) {
+                if let member = memberToRemove { viewModel.removeMember(member) }
+                memberToRemove = nil
+            }
+            Button("Cancel", role: .cancel) { memberToRemove = nil }
+        } message: {
+            if let member = memberToRemove {
+                Text("\(member.displayName) will be removed from the group.")
+            }
         }
         .sheet(isPresented: $showGroupSwitcher) {
             NavigationView {
@@ -174,11 +223,20 @@ struct FamilyFeedView: View {
             ForEach(FeedTab.allCases, id: \.self) { tab in
                 Button(action: {
                     withAnimation(.easeInOut(duration: 0.18)) { selectedTab = tab }
+                    if tab == .messages { viewModel.markMessagesAsRead() }
                 }) {
                     VStack(spacing: 4) {
-                        Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
-                            .font(.system(size: 22))
-                            .foregroundColor(selectedTab == tab ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.5))
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
+                                .font(.system(size: 22))
+                                .foregroundColor(selectedTab == tab ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.5))
+                            if tab == .messages && viewModel.unreadCount > 0 && selectedTab != .messages {
+                                Circle()
+                                    .fill(Color.huddleCoral)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 4, y: -2)
+                            }
+                        }
                         Text(tab.label)
                             .font(.system(size: 10, weight: selectedTab == tab ? .semibold : .regular))
                             .foregroundColor(selectedTab == tab ? Color.huddleCoral : Color.huddleTextTertiary.opacity(0.5))
@@ -440,7 +498,10 @@ struct FamilyFeedView: View {
                 .background(Color.huddlePeach.opacity(0.3))
                 .cornerRadius(10)
                 .contextMenu {
-                    Button(action: { viewModel.togglePinMessage(message) }) {
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.togglePinMessage(message)
+                    }) {
                         Label("Unpin Message", systemImage: "pin.slash")
                     }
                 }
@@ -537,11 +598,12 @@ struct FamilyFeedView: View {
     }
 
     private func pingCard(message: HuddleMessage) -> some View {
-        HStack(spacing: 12) {
-            Text(String(message.content.prefix(2)))
+        let label = message.content.replacingOccurrences(of: "📍", with: "").trimmingCharacters(in: .whitespaces)
+        return HStack(spacing: 12) {
+            Text("📍")
                 .font(.system(size: 28))
             VStack(alignment: .leading, spacing: 2) {
-                Text(message.content.dropFirst(2).trimmingCharacters(in: .whitespaces))
+                Text(label.isEmpty ? "Ping" : label)
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(Color.huddleTextPrimary)
                 Text("\(message.senderName) · \(formatTime(message.createdAt))")
@@ -582,14 +644,17 @@ struct FamilyFeedView: View {
                     .background(isMe ? Color.huddleCoral : Color.huddleSurface)
                     .cornerRadius(14)
                     .contextMenu {
-                        Button(action: { viewModel.togglePinMessage(message) }) {
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.togglePinMessage(message)
+                        }) {
                             Label(
                                 message.isPinned ? "Unpin Message" : "Pin Message",
                                 systemImage: message.isPinned ? "pin.slash" : "pin.fill"
                             )
                         }
                         if viewModel.isCurrentUserAdmin || message.senderID == authService.currentUser?.id {
-                            Button(role: .destructive, action: { viewModel.deleteMessage(message) }) {
+                            Button(role: .destructive, action: { messageToDelete = message }) {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
@@ -750,7 +815,14 @@ struct FamilyFeedView: View {
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.huddleCoral.opacity(0.15), lineWidth: 1))
 
                     HStack(spacing: 10) {
-                        Button(action: { UIPasteboard.general.string = family.code }) {
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            UIPasteboard.general.string = family.code
+                            withAnimation { showCopiedToast = true }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                withAnimation { showCopiedToast = false }
+                            }
+                        }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "doc.on.doc").font(.system(size: 13))
                                 Text("Copy Code").font(.system(size: 14, weight: .semibold))
@@ -811,7 +883,7 @@ struct FamilyFeedView: View {
                             .contextMenu {
                                 if viewModel.isCurrentUserAdmin && member.id != authService.currentUser?.id {
                                     Button(role: .destructive) {
-                                        viewModel.removeMember(member)
+                                        memberToRemove = member
                                     } label: {
                                         Label("Remove from Group", systemImage: "person.crop.circle.badge.minus")
                                     }
@@ -853,7 +925,7 @@ struct FamilyFeedView: View {
         }
     }
 
-    // MARK: - Message Input
+    // MARK: - Ping Tray
 
     private var pingTrayView: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -862,14 +934,15 @@ struct FamilyFeedView: View {
                 .padding(.horizontal)
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(pingOptions, id: \.label) { option in
+                ForEach(pingOptions, id: \.self) { label in
                     Button {
-                        viewModel.sendPing(content: "\(option.emoji) \(option.label)")
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        viewModel.sendPing(content: "📍 \(label)")
                         showPingTray = false
                     } label: {
                         HStack(spacing: 10) {
-                            Text(option.emoji).font(.title2)
-                            Text(option.label)
+                            Text("📍").font(.title2)
+                            Text(label)
                                 .font(.subheadline)
                                 .fontWeight(.medium)
                             Spacer()
@@ -882,58 +955,19 @@ struct FamilyFeedView: View {
                 }
             }
             .padding(.horizontal)
-
-            Divider().padding(.horizontal)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Custom location")
-                    .font(.caption)
-                    .foregroundColor(Color.huddleTextTertiary)
-                    .padding(.horizontal)
-
-                HStack(spacing: 10) {
-                    HStack(spacing: 6) {
-                        Text("📍")
-                            .font(.system(size: 20))
-                        TextField("Where are you going?", text: $customPingText)
-                            .font(.subheadline)
-                            .autocorrectionDisabled(true)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(Color.huddleSurface)
-                    .cornerRadius(12)
-
-                    Button {
-                        let trimmed = customPingText.trimmingCharacters(in: .whitespaces)
-                        guard !trimmed.isEmpty else { return }
-                        viewModel.sendPing(content: "📍 \(trimmed)")
-                        customPingText = ""
-                        showPingTray = false
-                    } label: {
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                customPingText.trimmingCharacters(in: .whitespaces).isEmpty
-                                    ? Color.huddleTextTertiary.opacity(0.3)
-                                    : Color.huddleCoral
-                            )
-                            .clipShape(Circle())
-                    }
-                    .disabled(customPingText.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-                .padding(.horizontal)
-            }
         }
         .padding(.top, 20)
         .padding(.bottom, 8)
     }
 
+    // MARK: - Message Input
+
     private var messageInputBar: some View {
         HStack(spacing: 10) {
-            Button { showPingTray = true } label: {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showPingTray = true
+            } label: {
                 Image(systemName: "mappin.circle.fill")
                     .font(.system(size: 28))
                     .foregroundColor(Color.huddleCoral)
@@ -963,6 +997,7 @@ struct FamilyFeedView: View {
 
             Button(action: {
                 guard !messageText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 viewModel.sendMessage(content: messageText)
                 messageText = ""
                 isMessageFieldFocused = false

@@ -53,6 +53,8 @@ class JoinFamilyViewModel: ObservableObject {
                 case .failure(let error):
                     if error.localizedDescription.contains("Family not found") {
                         self.errorMessage = "Invalid code. Please check and try again."
+                    } else if error.localizedDescription.contains("full") {
+                        self.errorMessage = "This group is full (6 members max)."
                     } else {
                         self.errorMessage = "Error: \(error.localizedDescription)"
                     }

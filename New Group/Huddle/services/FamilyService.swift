@@ -88,6 +88,17 @@ error in
 
                 let familyId = document.documentID
 
+                guard let currentFamily = try? document.data(as: Family.self) else {
+                    completion(.failure(NSError(domain: "FamilyService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Could not read family data"])))
+                    return
+                }
+
+                let uniqueMembers = Dictionary(grouping: currentFamily.members, by: { $0.id }).compactMap { $0.value.first }
+                guard uniqueMembers.count < 6 else {
+                    completion(.failure(NSError(domain: "FamilyService", code: 403, userInfo: [NSLocalizedDescriptionKey: "This group is full. Maximum 6 members allowed."])))
+                    return
+                }
+
                 let newMember = Member(id: userId, displayName: displayName, photoBase64: photoBase64, joinedAt: Date())
 
                 self?.db.collection("families").document(familyId).updateData([

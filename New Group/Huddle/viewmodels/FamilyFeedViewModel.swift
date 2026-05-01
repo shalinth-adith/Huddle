@@ -16,6 +16,7 @@
       @Published var showShoppingList = false
 
       @Published var messages: [HuddleMessage] = []
+      @Published var unreadCount: Int = 0
       private var messageListener: ListenerRegistration?
 
       @Published var shoppingItems: [HuddleMessage] = []
@@ -69,6 +70,7 @@
               switch result {
               case .success(let fetchedMessages):
                   self.messages = fetchedMessages
+                  self.updateUnreadCount()
                   let widgetPings = fetchedMessages
                       .filter { $0.type == .ping }
                       .suffix(1)
@@ -100,15 +102,12 @@
           guard let familyId = authService.currentUser?.currentFamilyId,
                 let itemId = item.id else { return }
 
-          messageService.deleteMessage(
-              familyId: familyId,
-              messageId: itemId
-          ) { result in
-              switch result {
-              case .success:
-                  self.loadShoppingItems()
-              case .failure(_):
-                  break
+          // Optimistic update — no Firestore re-fetch needed
+          shoppingItems.removeAll { $0.id == itemId }
+
+          messageService.deleteMessage(familyId: familyId, messageId: itemId) { [weak self] result in
+              if case .failure = result {
+                  self?.loadShoppingItems()
               }
           }
       }
@@ -159,34 +158,43 @@
       }
 
       func togglePinMessage(_ message: HuddleMessage) {
-          guard let familyId = authService.currentUser?.currentFamilyId else {
-              return
-          }
-
-          guard let messageId = message.id else {
-              return
-          }
+          guard let familyId = authService.currentUser?.currentFamilyId,
+                let messageId = message.id else { return }
 
           let newPinStatus = !message.isPinned
 
-          messageService.togglePin(
-              familyId: familyId,
-              messageId: messageId,
-              isPinned: newPinStatus
-          ) { result in
-              switch result {
-              case .success:
-                  self.loadMessages()
-                  self.loadPinnedMessages()
-              case .failure(_):
-                  break
+          // Optimistic update — no Firestore re-fetch needed
+          if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+              messages[idx].isPinned = newPinStatus
+          }
+          if newPinStatus {
+              if !pinnedMessages.contains(where: { $0.id == messageId }) {
+                  var pinned = message; pinned.isPinned = true
+                  pinnedMessages.append(pinned)
+              }
+          } else {
+              pinnedMessages.removeAll { $0.id == messageId }
+          }
+
+          messageService.togglePin(familyId: familyId, messageId: messageId, isPinned: newPinStatus) { [weak self] result in
+              if case .failure = result {
+                  // Revert on failure
+                  if let idx = self?.messages.firstIndex(where: { $0.id == messageId }) {
+                      self?.messages[idx].isPinned = !newPinStatus
+                  }
+                  if newPinStatus {
+                      self?.pinnedMessages.removeAll { $0.id == messageId }
+                  } else if !(self?.pinnedMessages.contains(where: { $0.id == messageId }) ?? false) {
+                      var reverted = message; reverted.isPinned = true
+                      self?.pinnedMessages.append(reverted)
+                  }
               }
           }
       }
       var isCurrentUserAdmin: Bool {
           guard let uid = authService.currentUser?.id, let family else { return false }
           if let adminId = family.adminId { return adminId == uid }
-          return family.members.sorted { $0.joinedAt < $1.joinedAt }.first?.id == uid
+          return family.members.min(by: { $0.joinedAt < $1.joinedAt })?.id == uid
       }
 
       func removeMember(_ member: Member) {
@@ -219,16 +227,15 @@
                 let familyId = authService.currentUser?.currentFamilyId,
                 let messageId = message.id else { return }
 
-          messageService.deleteMessage(
-              familyId: familyId,
-              messageId: messageId
-          ) { result in
-              switch result {
-              case .success:
-                  self.loadMessages()
-                  self.loadPinnedMessages()
-              case .failure(_):
-                  break
+          // Optimistic update — no Firestore re-fetch needed
+          messages.removeAll { $0.id == messageId }
+          pinnedMessages.removeAll { $0.id == messageId }
+
+          messageService.deleteMessage(familyId: familyId, messageId: messageId) { [weak self] result in
+              if case .failure = result {
+                  // Revert on failure by reloading
+                  self?.loadMessages()
+                  self?.loadPinnedMessages()
               }
           }
       }               
@@ -282,6 +289,19 @@
               }
           }
           group.notify(queue: .main) { self.availableFamilies = loaded }
+      }
+
+      func markMessagesAsRead() {
+          UserDefaults.standard.set(Date(), forKey: "lastMessagesViewDate")
+          unreadCount = 0
+      }
+
+      private func updateUnreadCount() {
+          let lastRead = UserDefaults.standard.object(forKey: "lastMessagesViewDate") as? Date ?? .distantPast
+          guard let uid = authService.currentUser?.id else { return }
+          unreadCount = messages.filter {
+              $0.senderID != uid && $0.type != .system && $0.createdAt > lastRead
+          }.count
       }
 
       func cleanup() {

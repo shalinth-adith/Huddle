@@ -15,7 +15,7 @@ struct MemberAvatarView: View {
 
     private var decodedImage: UIImage? {
         guard let base64 = photoBase64 else { return nil }
-        let key = String(base64.prefix(64)) as NSString
+        let key = String(base64.hashValue) as NSString
         if let cached = Self.imageCache.object(forKey: key) { return cached }
         guard let data = Data(base64Encoded: base64), let img = UIImage(data: data) else { return nil }
         Self.imageCache.setObject(img, forKey: key)

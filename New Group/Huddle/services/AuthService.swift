@@ -22,6 +22,7 @@ import Combine
       init() {
           // Synchronous — reads local device storage, no network
           isCheckingAuth = Auth.auth().currentUser != nil
+          photoThumbnailBase64 = UserDefaults.standard.string(forKey: "photoThumbnailBase64")
           checkAuthStatus()
       }
 
@@ -52,6 +53,9 @@ import Combine
               }
               DispatchQueue.main.async {
                   self?.photoThumbnailBase64 = thumbnailBase64
+                  if let thumbnailBase64 {
+                      UserDefaults.standard.set(thumbnailBase64, forKey: "photoThumbnailBase64")
+                  }
                   self?._signInAnonymously(displayName: displayName, photoBase64: photoBase64, completion: completion)
               }
           }
