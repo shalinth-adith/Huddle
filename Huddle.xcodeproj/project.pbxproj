@@ -58,6 +58,7 @@
 		F0B3E6A02ECD871800115C51 /* Huddle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Huddle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6AD2ECD871900115C51 /* HuddleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0B3E6B72ECD871900115C51 /* HuddleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HuddleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0CC66462FA4D2D600D93774 /* Huddle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "Huddle-Info.plist"; sourceTree = "<group>"; };
 		F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = HuddleWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		F0D5A58A2F3B4C6E007E64CF /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		F0D5A58C2F3B4C6E007E64CF /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -159,6 +160,7 @@
 		F0B3E6972ECD871800115C51 = {
 			isa = PBXGroup;
 			children = (
+				F0CC66462FA4D2D600D93774 /* Huddle-Info.plist */,
 				F021C2E62F857EB200B7A0A0 /* Huddle.xctestplan */,
 				F0D5A5A12F3B5005007E64CF /* HuddleWidgetExtension.entitlements */,
 				F0D5A5A02F3B4FD9007E64CF /* Huddle.entitlements */,
@@ -559,6 +561,7 @@
 				DEVELOPMENT_TEAM = 649T62WKAQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Huddle-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -592,6 +595,7 @@
 				DEVELOPMENT_TEAM = 649T62WKAQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Huddle-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

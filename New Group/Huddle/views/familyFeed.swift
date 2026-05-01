@@ -3,10 +3,10 @@ import SwiftUI
 struct FamilyFeedView: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel: FamilyFeedViewModel
-    @State private var messageText: String = ""
     @Binding var openToShopping: Bool
 
-    @FocusState private var isMessageFieldFocused: Bool
+    @AppStorage("huddleColorScheme") private var colorSchemePreference: Int = 0
+
     @State private var selectedTab: FeedTab = .home
     @State private var showLeaveAlert = false
     @State private var showRenameAlert = false
@@ -16,6 +16,7 @@ struct FamilyFeedView: View {
     @State private var messageToDelete: HuddleMessage?
     @State private var memberToRemove: Member?
     @State private var showCopiedToast = false
+    @State private var showExpandedChat = false
 
     private let pingOptions: [String] = [
         "I'm home",
@@ -96,7 +97,10 @@ struct FamilyFeedView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {
                         if selectedTab == .messages {
-                            messageInputBar
+                            MessageInputBar(
+                                onSend: { viewModel.sendMessage(content: $0) },
+                                onPingTap: { showPingTray = true }
+                            )
                         }
                         tabBar
                     }
@@ -111,9 +115,13 @@ struct FamilyFeedView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
-        .preferredColorScheme(.light)
+        .sheet(isPresented: $showExpandedChat) {
+            ExpandedChat(viewModel: viewModel).environmentObject(authService)
+        }
         .buttonStyle(.plain)
-        .onTapGesture { isMessageFieldFocused = false }
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .onAppear {
             viewModel.loadFamily()
             viewModel.loadMessages()
@@ -247,8 +255,8 @@ struct FamilyFeedView: View {
             }
         }
         .background(
-            Color.white
-                .ignoresSafeArea(edges: .bottom)    // fills the home-indicator gap
+            Color.huddleCard
+                .ignoresSafeArea(edges: .bottom)
                 .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: -2)
         )
         .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
@@ -409,7 +417,7 @@ struct FamilyFeedView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
@@ -471,7 +479,7 @@ struct FamilyFeedView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
@@ -508,7 +516,7 @@ struct FamilyFeedView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
@@ -546,7 +554,7 @@ struct FamilyFeedView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
     }
@@ -554,38 +562,73 @@ struct FamilyFeedView: View {
     // MARK: - Messages Tab
 
     private func messagesTab() -> some View {
-        ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: 10) {
-                if viewModel.messages.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "message")
-                            .font(.system(size: 48))
-                            .foregroundColor(Color.huddleTextTertiary.opacity(0.35))
-                            .padding(.top, 60)
-                        Text("No messages yet")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                        Text("Be the first to say something!")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color.huddleTextTertiary)
+        VStack(spacing: 0) {
+            HStack {
+                Text("Messages")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                Spacer()
+                Button(action: { showExpandedChat = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Full Chat")
+                            .font(.system(size: 13, weight: .semibold))
                     }
-                    .frame(maxWidth: .infinity)
-                } else {
-                    ForEach(viewModel.messages) { message in
-                        if message.type == .system {
-                            systemMessageView(message: message)
-                        } else if message.type == .ping {
-                            pingCard(message: message)
-                        } else {
-                            messageBubble(message: message)
-                        }
-                    }
+                    .foregroundColor(Color.huddleCoral)
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 14)
+            .padding(.vertical, 10)
+            .background(Color.huddleBackground)
+            .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .bottom)
+
+        ScrollViewReader { proxy in
+            ScrollView(showsIndicators: false) {
+                LazyVStack(spacing: 10) {
+                    if viewModel.messages.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "message")
+                                .font(.system(size: 48))
+                                .foregroundColor(Color.huddleTextTertiary.opacity(0.35))
+                                .padding(.top, 60)
+                            Text("No messages yet")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(Color.huddleTextPrimary)
+                            Text("Be the first to say something!")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.huddleTextTertiary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(viewModel.messages) { message in
+                            if message.type == .system {
+                                systemMessageView(message: message)
+                            } else if message.type == .ping {
+                                pingCard(message: message)
+                            } else {
+                                messageBubble(message: message)
+                            }
+                        }
+                    }
+                    Color.clear.frame(height: 1).id("msgBottom")
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+                .padding(.bottom, 14)
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    proxy.scrollTo("msgBottom", anchor: .bottom)
+                }
+            }
+            .onChange(of: viewModel.messages.count) { _ in
+                withAnimation(.easeOut(duration: 0.2)) {
+                    proxy.scrollTo("msgBottom", anchor: .bottom)
+                }
+            }
         }
+        } // end VStack for messagesTab
     }
 
     private func systemMessageView(message: HuddleMessage) -> some View {
@@ -644,6 +687,14 @@ struct FamilyFeedView: View {
                     .background(isMe ? Color.huddleCoral : Color.huddleSurface)
                     .cornerRadius(14)
                     .contextMenu {
+                        Menu("React") {
+                            ForEach(["❤️", "😂", "👍", "😮", "😢", "🎉"], id: \.self) { emoji in
+                                Button(action: {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    viewModel.toggleReaction(message: message, emoji: emoji)
+                                }) { Text(emoji) }
+                            }
+                        }
                         Button(action: {
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             viewModel.togglePinMessage(message)
@@ -659,12 +710,44 @@ struct FamilyFeedView: View {
                             }
                         }
                     }
+
+                if let reactions = message.reactions, !reactions.isEmpty {
+                    reactionRow(reactions: reactions, message: message)
+                }
+
                 Text(formatTime(message.createdAt))
                     .font(.system(size: 10))
                     .foregroundColor(Color.huddleTextTertiary)
             }
 
             if !isMe { Spacer(minLength: 48) }
+        }
+    }
+
+    private func reactionRow(reactions: [String: [String]], message: HuddleMessage) -> some View {
+        let sorted = reactions.sorted { $0.value.count > $1.value.count }
+        return HStack(spacing: 5) {
+            ForEach(sorted, id: \.key) { emoji, users in
+                let isMine = users.contains(authService.currentUser?.id ?? "")
+                Button(action: {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    viewModel.toggleReaction(message: message, emoji: emoji)
+                }) {
+                    HStack(spacing: 3) {
+                        Text(emoji).font(.system(size: 12))
+                        if users.count > 1 {
+                            Text("\(users.count)")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(isMine ? Color.huddleCoral : Color.huddleTextTertiary)
+                        }
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(isMine ? Color.huddleCoral.opacity(0.12) : Color.huddleSecondaryFixed)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(isMine ? Color.huddleCoral.opacity(0.4) : Color.clear, lineWidth: 1))
+                }
+            }
         }
     }
 
@@ -742,7 +825,7 @@ struct FamilyFeedView: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 13)
-                            .background(Color.white)
+                            .background(Color.huddleCard)
                             .cornerRadius(12)
                             .opacity(item.isCompleted ? 0.65 : 1)
                             .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
@@ -830,7 +913,7 @@ struct FamilyFeedView: View {
                             .foregroundColor(Color.huddleCoral)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 13)
-                            .background(Color.white)
+                            .background(Color.huddleCard)
                             .cornerRadius(10)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.huddleBorder, lineWidth: 1.5))
                         }
@@ -848,7 +931,7 @@ struct FamilyFeedView: View {
                     }
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Color.huddleCard)
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
 
@@ -901,7 +984,7 @@ struct FamilyFeedView: View {
                     }
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Color.huddleCard)
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
 
@@ -918,6 +1001,25 @@ struct FamilyFeedView: View {
                     .background(Color(hex: "BA1A1A").opacity(0.07))
                     .cornerRadius(12)
                 }
+
+                // Appearance toggle
+                HStack {
+                    Label("Appearance", systemImage: "moon.fill")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color.huddleTextPrimary)
+                    Spacer()
+                    Picker("", selection: $colorSchemePreference) {
+                        Text("System").tag(0)
+                        Text("Light").tag(1)
+                        Text("Dark").tag(2)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 185)
+                }
+                .padding(16)
+                .background(Color.huddleCard)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 2)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -958,67 +1060,6 @@ struct FamilyFeedView: View {
         }
         .padding(.top, 20)
         .padding(.bottom, 8)
-    }
-
-    // MARK: - Message Input
-
-    private var messageInputBar: some View {
-        HStack(spacing: 10) {
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                showPingTray = true
-            } label: {
-                Image(systemName: "mappin.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(Color.huddleCoral)
-            }
-
-            HStack(spacing: 8) {
-                TextField("Message your family...", text: $messageText)
-                    .font(.system(size: 15))
-                    .foregroundColor(Color.huddleTextPrimary)
-                    .focused($isMessageFieldFocused)
-                if !messageText.isEmpty {
-                    Button(action: { messageText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
-                    }
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .background(Color.huddleBackground)
-            .cornerRadius(24)
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(isMessageFieldFocused ? Color.huddleCoral : Color.huddleBorder, lineWidth: 1.5)
-            )
-
-            Button(action: {
-                guard !messageText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                viewModel.sendMessage(content: messageText)
-                messageText = ""
-                isMessageFieldFocused = false
-            }) {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? Color.huddleTextTertiary.opacity(0.3)
-                            : Color.huddleCoral
-                    )
-                    .clipShape(Circle())
-            }
-            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color.white)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
     }
 
     // MARK: - Share Sheet
@@ -1078,7 +1119,7 @@ struct FamilyFeedView: View {
                                 .foregroundColor(Color.huddleCoral)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
-                                .background(Color.white)
+                                .background(Color.huddleCard)
                                 .cornerRadius(10)
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.huddleBorder, lineWidth: 1.5))
                             }
@@ -1103,7 +1144,6 @@ struct FamilyFeedView: View {
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
                 }
-                .preferredColorScheme(.light)
                 .presentationDetents([.medium])
             )
         } else {
@@ -1113,16 +1153,84 @@ struct FamilyFeedView: View {
 
     // MARK: - Helpers
 
-    private func getInitials(from name: String) -> String {
-        String(name.split(separator: " ").prefix(2).compactMap { $0.first }).uppercased()
-    }
-
     private func formatTime(_ date: Date) -> String {
         let s = Int(Date().timeIntervalSince(date))
         if s < 60 { return "just now" }
         if s < 3600 { return "\(s / 60)m ago" }
         if s < 86400 { return "\(s / 3600)h ago" }
         return "\(s / 86400)d ago"
+    }
+}
+
+// MARK: - Isolated input bar — owns its own state so typing never rebuilds the message list
+
+private struct MessageInputBar: View {
+    let onSend: (String) -> Void
+    let onPingTap: () -> Void
+
+    @State private var messageText = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onPingTap()
+            } label: {
+                Image(systemName: "mappin.circle.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(Color.huddleCoral)
+            }
+
+            HStack(spacing: 8) {
+                TextField("Message your family...", text: $messageText)
+                    .font(.system(size: 15))
+                    .foregroundColor(Color.huddleTextPrimary)
+                    .focused($isFocused)
+                    .onSubmit { send() }
+                if !messageText.isEmpty {
+                    Button(action: { messageText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(Color.huddleBackground)
+            .cornerRadius(24)
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(isFocused ? Color.huddleCoral : Color.huddleBorder, lineWidth: 1.5)
+            )
+
+            Button(action: send) {
+                Image(systemName: "paperplane.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? Color.huddleTextTertiary.opacity(0.3)
+                            : Color.huddleCoral
+                    )
+                    .clipShape(Circle())
+            }
+            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color.huddleCard)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
+    }
+
+    private func send() {
+        let text = messageText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        onSend(text)
+        messageText = ""
     }
 }
 

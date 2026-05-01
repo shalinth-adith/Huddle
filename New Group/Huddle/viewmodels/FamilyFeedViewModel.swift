@@ -306,32 +306,51 @@
           }.count
       }
 
+      func toggleReaction(message: HuddleMessage, emoji: String) {
+          guard let familyId = authService.currentUser?.currentFamilyId,
+                let messageId = message.id,
+                let userId = authService.currentUser?.id else { return }
+
+          let alreadyReacted = message.reactions?[emoji]?.contains(userId) ?? false
+
+          // Optimistic update
+          if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+              var reactions = messages[idx].reactions ?? [:]
+              var users = reactions[emoji] ?? []
+              if alreadyReacted { users.removeAll { $0 == userId } } else { users.append(userId) }
+              reactions[emoji] = users.isEmpty ? nil : users
+              messages[idx].reactions = reactions.isEmpty ? nil : reactions
+          }
+
+          messageService.toggleReaction(familyId: familyId, messageId: messageId, emoji: emoji, userId: userId, add: !alreadyReacted) { _ in }
+      }
+
       func setupEncryption(family: Family) {
           guard let uid = authService.currentUser?.id,
                 let familyId = family.id else { return }
-
           let groupKeys = family.encryptedGroupKeys ?? [:]
+          let members = family.members
 
-          // Decrypt group key from Firestore if not already in Keychain
-          if EncryptionService.loadGroupKey(familyId: familyId) == nil,
-             let encryptedForMe = groupKeys[uid],
-             let privateKey = try? EncryptionService.loadPrivateKey() {
-              let candidateKeys = family.members.compactMap { $0.publicKey }
-              if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
-                  try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
+          DispatchQueue.global(qos: .userInitiated).async {
+              if EncryptionService.loadGroupKey(familyId: familyId) == nil,
+                 let encryptedForMe = groupKeys[uid],
+                 let privateKey = try? EncryptionService.loadPrivateKey() {
+                  let candidateKeys = members.compactMap { $0.publicKey }
+                  if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
+                      try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
+                  }
               }
-          }
 
-          // Distribute group key to any members who don't have it yet
-          guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId),
-                let privateKey = try? EncryptionService.loadPrivateKey() else { return }
+              guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId),
+                    let privateKey = try? EncryptionService.loadPrivateKey() else { return }
 
-          for member in family.members {
-              guard groupKeys[member.id] == nil,
-                    let memberPublicKey = member.publicKey,
-                    let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
-              db.collection("families").document(familyId)
-                .updateData(["encryptedGroupKeys.\(member.id)": encrypted])
+              for member in members {
+                  guard groupKeys[member.id] == nil,
+                        let memberPublicKey = member.publicKey,
+                        let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
+                  self.db.collection("families").document(familyId)
+                    .updateData(["encryptedGroupKeys.\(member.id)": encrypted])
+              }
           }
       }
 

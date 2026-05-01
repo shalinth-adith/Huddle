@@ -10,11 +10,33 @@ import SwiftUI
 struct WelcomeView: View {
     let onGetStarted: () -> Void
 
+    @AppStorage("huddleColorScheme") private var colorSchemePreference: Int = 0
+
     var body: some View {
         ZStack(alignment: .top) {
             Color.huddleBackground.ignoresSafeArea()
-            VStack(spacing: 0) {
 
+            // Dark mode toggle — top trailing
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        colorSchemePreference = colorSchemePreference == 2 ? 1 : 2
+                    }) {
+                        Image(systemName: colorSchemePreference == 2 ? "sun.max.fill" : "moon.fill")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(Color.huddleTextTertiary)
+                            .padding(8)
+                            .background(Color.huddleSecondaryFixed)
+                            .clipShape(Circle())
+                    }
+                    .padding(.trailing, 20)
+                }
+                .padding(.top, 60)
+                Spacer()
+            }
+
+            VStack(spacing: 0) {
                 VStack(spacing: 0) {
                     // ── Top content (centred in available space) ──
                     VStack(spacing: 70) {
@@ -53,17 +75,14 @@ struct WelcomeView: View {
                                 .font(.system(size: 34, weight: .bold))
                                 .foregroundColor(Color.huddleCoral)
                         }
-
-                        
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 40)
 
                     Spacer()
 
-                    // ── Bottom: Sign In + social proof ──
+                    // ── Bottom: Sign In ──
                     VStack(spacing: 20) {
-                        // Sign In button
                         Button(action: onGetStarted) {
                             Text("Sign In")
                                 .font(.system(size: 18, weight: .semibold))
@@ -74,14 +93,12 @@ struct WelcomeView: View {
                                 .cornerRadius(12)
                                 .shadow(color: Color.huddleCoral.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
-
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 48)
                 }
             }
         }
-        .preferredColorScheme(.light)
         .buttonStyle(.plain)
     }
 }

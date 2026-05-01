@@ -27,8 +27,9 @@ struct HuddleMessage: Codable, Identifiable {
     var isPinned: Bool
     var isCompleted: Bool
     var createdAt: Date
-    
+    var reactions: [String: [String]]?  // emoji → [userId]
+
     enum CodingKeys: String, CodingKey {
-        case id, familyID, senderID, senderName, type, content, photoURL, isPinned, isCompleted, createdAt
+        case id, familyID, senderID, senderName, type, content, photoURL, isPinned, isCompleted, createdAt, reactions
     }
 }

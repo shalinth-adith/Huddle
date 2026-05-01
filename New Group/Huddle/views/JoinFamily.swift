@@ -90,34 +90,45 @@ struct JoinFamily: View {
                             .lineSpacing(3)
                     }
 
-                    // Code input
+                    // Code input — "H-" is a fixed Text; only the 6 digits are editable
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Family Code")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(Color.huddleTextSecondary)
                             .padding(.leading, 4)
 
-                        TextField("H-000000", text: Binding(
-                            get: { viewModel.familyCode },
-                            set: { viewModel.familyCode = viewModel.formatted($0) }
-                        ))
+                        HStack(spacing: 0) {
+                            Text("H-")
+                                .font(.system(size: 22, weight: .semibold))
+                                .tracking(4)
+                                .foregroundColor(Color.huddleCoral)
+
+                            TextField("000000", text: Binding(
+                                get: { String(viewModel.familyCode.dropFirst(2)) },
+                                set: { input in
+                                    let digits = input.filter { $0.isNumber }
+                                    viewModel.familyCode = "H-\(String(digits.prefix(6)))"
+                                }
+                            ))
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                            .multilineTextAlignment(.center)
                             .tracking(4)
-                            .autocapitalization(.allCharacters)
-                            .autocorrectionDisabled(true)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 16)
-                            .background(Color.huddleSurface)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        viewModel.familyCode == "H-" ? Color.clear : Color.huddleCoral,
-                                        lineWidth: 2
-                                    )
-                            )
+                            .keyboardType(.numberPad)
+                            .foregroundColor(Color.huddleTextPrimary)
+
+                            Spacer(minLength: 0)
+                        }
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                        .background(Color.huddleSurface)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    viewModel.familyCode == "H-" ? Color.clear : Color.huddleCoral,
+                                    lineWidth: 2
+                                )
+                        )
                     }
 
                     if let error = viewModel.errorMessage {

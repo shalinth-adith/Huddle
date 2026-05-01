@@ -33,7 +33,6 @@ struct ShoppingList: View {
             }
         }
         .buttonStyle(.plain)
-        .preferredColorScheme(.light)
         .onAppear { viewModel.loadItems() }
         .alert("Delete Item?", isPresented: Binding(
             get: { itemToDelete != nil },
@@ -100,7 +99,7 @@ struct ShoppingList: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(Color.white)
+            .background(Color.huddleCard)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -200,7 +199,7 @@ struct ShoppingList: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
         .opacity(item.isCompleted ? 0.7 : 1)

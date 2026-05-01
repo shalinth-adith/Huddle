@@ -23,7 +23,7 @@ struct NameInputView: View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
 
-            // Background accents — no blur, renders instantly
+            // Background accents — isolated so they never rebuild on keystroke
             ZStack {
                 Circle()
                     .fill(Color.huddlePrimaryFixed.opacity(0.25))
@@ -35,6 +35,7 @@ struct NameInputView: View {
                     .offset(x: -120, y: 380)
             }
             .ignoresSafeArea()
+            .allowsHitTesting(false)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 32) {
@@ -45,7 +46,7 @@ struct NameInputView: View {
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundColor(Color.huddleTextSecondary)
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.huddleCard)
                                 .clipShape(Circle())
                                 .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                         }
@@ -62,7 +63,6 @@ struct NameInputView: View {
 
                         Spacer()
 
-                        // Balance the back button so dots stay centred
                         Color.clear.frame(width: 40, height: 40)
                     }
                     .padding(.top, 24)
@@ -90,15 +90,25 @@ struct NameInputView: View {
                                     )
                                     .clipShape(Circle())
 
-                                Circle()
-                                    .fill(Color.huddleCoral)
-                                    .frame(width: 32, height: 32)
-                                    .overlay(
-                                        Image(systemName: "camera.fill")
-                                            .font(.system(size: 14))
-                                            .foregroundColor(.white)
-                                    )
-                                    .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                                if profileImage != nil {
+                                    // Checkmark badge — replaces camera icon after photo selected
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 30, weight: .semibold))
+                                        .foregroundStyle(.white, .green)
+                                        .background(Color.huddleCard.clipShape(Circle()))
+                                        .transition(.scale.combined(with: .opacity))
+                                } else {
+                                    Circle()
+                                        .fill(Color.huddleCoral)
+                                        .frame(width: 32, height: 32)
+                                        .overlay(
+                                            Image(systemName: "camera.fill")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.white)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
+                                        .transition(.scale.combined(with: .opacity))
+                                }
                             }
                         }
                         .buttonStyle(.plain)
@@ -107,7 +117,6 @@ struct NameInputView: View {
                                 guard let data = try? await newItem?.loadTransferable(type: Data.self),
                                       let raw = UIImage(data: data) else { return }
                                 let thumb = await Task.detached(priority: .userInitiated) {
-                                    // Proportional scale — no squishing of portrait/landscape photos
                                     let maxDim: CGFloat = 300
                                     let scale = min(maxDim / raw.size.width, maxDim / raw.size.height)
                                     let newSize = CGSize(width: raw.size.width * scale, height: raw.size.height * scale)
@@ -115,11 +124,15 @@ struct NameInputView: View {
                                         raw.draw(in: CGRect(origin: .zero, size: newSize))
                                     }
                                 }.value
-                                await MainActor.run { profileImage = thumb }
+                                await MainActor.run {
+                                    withAnimation(.spring(response: 0.3)) {
+                                        profileImage = thumb
+                                    }
+                                }
                             }
                         }
 
-                        // Title + subtitle
+                        // Title
                         VStack(spacing: 12) {
                             Text("What is Your name?")
                                 .font(.system(size: 30, weight: .semibold))
@@ -180,39 +193,47 @@ struct NameInputView: View {
                         .disabled(trimmedName.isEmpty || isLoading)
                     }
                     .padding(28)
-                    .background(Color.white)
+                    .background(Color.huddleCard)
                     .cornerRadius(16)
                     .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
 
-                    // Decorative shapes
-                    HStack(spacing: 36) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.huddlePrimaryFixed)
-                            .frame(width: 52, height: 52)
-                            .rotationEffect(.degrees(12))
-                        Circle()
-                            .fill(Color.huddleSecondaryFixed)
-                            .frame(width: 38, height: 38)
-                            .offset(y: 10)
-                        ZStack {
-                            Circle()
-                                .strokeBorder(
-                                    Color.huddleOutlineVariant,
-                                    style: StrokeStyle(lineWidth: 2, dash: [4])
-                                )
-                                .frame(width: 60, height: 60)
-                            Circle()
-                                .fill(Color.huddlePrimaryFixed.opacity(0.6))
-                                .frame(width: 14, height: 14)
-                        }
-                    }
-                    .opacity(0.2)
-                    .padding(.bottom, 40)
+                    // Decorative shapes — extracted struct, never rebuilds on parent state changes
+                    NameInputDecorativeShapes()
+                        .drawingGroup()
+                        .allowsHitTesting(false)
+                        .padding(.bottom, 40)
                 }
                 .padding(.horizontal, 24)
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct NameInputDecorativeShapes: View {
+    var body: some View {
+        HStack(spacing: 36) {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.huddlePrimaryFixed)
+                .frame(width: 52, height: 52)
+                .rotationEffect(.degrees(12))
+            Circle()
+                .fill(Color.huddleSecondaryFixed)
+                .frame(width: 38, height: 38)
+                .offset(y: 10)
+            ZStack {
+                Circle()
+                    .strokeBorder(
+                        Color.huddleOutlineVariant,
+                        style: StrokeStyle(lineWidth: 2, dash: [4])
+                    )
+                    .frame(width: 60, height: 60)
+                Circle()
+                    .fill(Color.huddlePrimaryFixed.opacity(0.6))
+                    .frame(width: 14, height: 14)
+            }
+        }
+        .opacity(0.2)
     }
 }
 

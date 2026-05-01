@@ -126,7 +126,7 @@ struct CreateJoinFamily: View {
                     Spacer(minLength: 0)
                 }
                 .padding(20)
-                .background(Color.white)
+                .background(Color.huddleCard)
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
             }
@@ -163,7 +163,7 @@ struct CreateJoinFamily: View {
                     Spacer(minLength: 0)
                 }
                 .padding(20)
-                .background(Color.white)
+                .background(Color.huddleCard)
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
             }
@@ -196,7 +196,7 @@ struct CreateJoinFamily: View {
             Spacer()
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.huddleCard)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
     }

@@ -52,7 +52,7 @@ struct CreateFamily: View {
     // MARK: - Input View
 
     private var inputView: some View {
-        VStack(spacing: 80) {
+        VStack(spacing: 20) {
             // Header
             HStack {
                 Text("Huddle")
@@ -288,7 +288,7 @@ struct CreateFamily: View {
                             .foregroundColor(Color.huddleTextPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
-                            .background(Color.white)
+                            .background(Color.huddleCard)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)

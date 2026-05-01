@@ -37,20 +37,26 @@ class MessageService {
             .whereField("type", isEqualTo: MessageType.Shopping.rawValue)
             .order(by: "createdAt", descending: false)
 
-        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { [weak self] snapshot in
-            let msgs = try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
-            return self?.decrypted(msgs, familyId: familyId) ?? msgs
+        let decode: (QuerySnapshot) -> [HuddleMessage] = { snapshot in
+            (try? snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }) ?? []
         }
 
-        query.getDocuments(source: .cache) { snapshot, _ in
-            if let snapshot, let messages = try? decode(snapshot) {
-                completion(.success(messages))
+        query.getDocuments(source: .cache) { [weak self] snapshot, _ in
+            guard let snapshot else { return }
+            let msgs = decode(snapshot)
+            DispatchQueue.global(qos: .utility).async {
+                let result = self?.decrypted(msgs, familyId: familyId) ?? msgs
+                DispatchQueue.main.async { completion(.success(result)) }
             }
         }
-        query.getDocuments(source: .server) { snapshot, error in
+        query.getDocuments(source: .server) { [weak self] snapshot, error in
             if let error { completion(.failure(error)); return }
             guard let snapshot else { return }
-            do { completion(.success(try decode(snapshot))) } catch { completion(.failure(error)) }
+            let msgs = decode(snapshot)
+            DispatchQueue.global(qos: .utility).async {
+                let result = self?.decrypted(msgs, familyId: familyId) ?? msgs
+                DispatchQueue.main.async { completion(.success(result)) }
+            }
         }
     }
     func addShoppingItem(
@@ -169,20 +175,26 @@ class MessageService {
             .whereField("type", isEqualTo: MessageType.text.rawValue)
             .order(by: "createdAt", descending: false)
 
-        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { [weak self] snapshot in
-            let msgs = try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
-            return self?.decrypted(msgs, familyId: familyId) ?? msgs
+        let decode: (QuerySnapshot) -> [HuddleMessage] = { snapshot in
+            (try? snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }) ?? []
         }
 
-        query.getDocuments(source: .cache) { snapshot, _ in
-            if let snapshot, let messages = try? decode(snapshot) {
-                completion(.success(messages))
+        query.getDocuments(source: .cache) { [weak self] snapshot, _ in
+            guard let snapshot else { return }
+            let msgs = decode(snapshot)
+            DispatchQueue.global(qos: .utility).async {
+                let result = self?.decrypted(msgs, familyId: familyId) ?? msgs
+                DispatchQueue.main.async { completion(.success(result)) }
             }
         }
-        query.getDocuments(source: .server) { snapshot, error in
+        query.getDocuments(source: .server) { [weak self] snapshot, error in
             if let error { completion(.failure(error)); return }
             guard let snapshot else { return }
-            do { completion(.success(try decode(snapshot))) } catch { completion(.failure(error)) }
+            let msgs = decode(snapshot)
+            DispatchQueue.global(qos: .utility).async {
+                let result = self?.decrypted(msgs, familyId: familyId) ?? msgs
+                DispatchQueue.main.async { completion(.success(result)) }
+            }
         }
     }
 
@@ -280,6 +292,17 @@ class MessageService {
         }
     }
 
+    func toggleReaction(familyId: String, messageId: String, emoji: String, userId: String, add: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
+        let field = "reactions.\(emoji)"
+        let value: Any = add ? FieldValue.arrayUnion([userId]) : FieldValue.arrayRemove([userId])
+        db.collection("families").document(familyId)
+          .collection("messages").document(messageId)
+          .updateData([field: value]) { error in
+              if let error { completion(.failure(error)); return }
+              completion(.success(()))
+          }
+    }
+
     func listenToMessages(
           familyId: String,
           completion: @escaping (Result<[HuddleMessage], Error>) -> Void
@@ -306,7 +329,10 @@ class MessageService {
                     let messages = try documents.compactMap { doc in
                         try doc.data(as: HuddleMessage.self)
                     }
-                    completion(.success(self.decrypted(messages, familyId: familyId)))
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let result = self.decrypted(messages, familyId: familyId)
+                        DispatchQueue.main.async { completion(.success(result)) }
+                    }
                 } catch {
                     completion(.failure(error))
                 }
