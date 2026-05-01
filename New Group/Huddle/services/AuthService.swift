@@ -74,6 +74,8 @@ import Combine
                   return
               }
 
+              let publicKeyBase64 = try? EncryptionService.generateAndStoreKeyPair()
+
               let newUser = AppUser(
                   id: userId,
                   PhoneNumber: nil,
@@ -81,7 +83,8 @@ import Combine
                   displayName: displayName,
                   photoBase64: photoBase64,
                   currentFamilyId: nil,
-                  createdAt: Date()
+                  createdAt: Date(),
+                  publicKey: publicKeyBase64
               )
 
               self?.createUserProfile(user: newUser) { result in
@@ -156,7 +159,11 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
                   return
               }
               do {
-                  let user = try Firestore.Decoder().decode(AppUser.self, from: data)
+                  var user = try Firestore.Decoder().decode(AppUser.self, from: data)
+                  if user.publicKey == nil, let pubKey = try? EncryptionService.generateAndStoreKeyPair() {
+                      user.publicKey = pubKey
+                      self?.db.collection("users").document(userId).updateData(["publicKey": pubKey])
+                  }
                   DispatchQueue.main.async {
                       self?.currentUser = user
                       self?.isAuthenticated = true

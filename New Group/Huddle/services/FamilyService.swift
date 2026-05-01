@@ -12,32 +12,39 @@ class FamilyService  {
     }
 
  
-    func createFamily(familyName: String, creatorId: String, creatorName: String, creatorPhotoBase64: String? = nil, completion:
+    func createFamily(familyName: String, creatorId: String, creatorName: String, creatorPhotoBase64: String? = nil, creatorPublicKey: String? = nil, completion:
 @escaping (Result<Family, Error>) -> Void) {
         let familyCode = generateFamilyCode()
 
-
         checkCodeExists(code: familyCode) { [weak self] exists in
             if exists {
-
                 self?.createFamily(familyName: familyName, creatorId: creatorId, creatorName:
-creatorName, creatorPhotoBase64: creatorPhotoBase64, completion: completion)
+creatorName, creatorPhotoBase64: creatorPhotoBase64, creatorPublicKey: creatorPublicKey, completion: completion)
                 return
             }
 
-
             let familyId = UUID().uuidString
-            let member = Member(id: creatorId, displayName: creatorName, photoBase64: creatorPhotoBase64, joinedAt: Date())
+            let member = Member(id: creatorId, displayName: creatorName, photoBase64: creatorPhotoBase64, joinedAt: Date(), publicKey: creatorPublicKey)
+
+            var encryptedGroupKeys: [String: String] = [:]
+            let groupKey = EncryptionService.generateGroupKey()
+            try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
+
+            if let creatorPubKey = creatorPublicKey,
+               let privateKey = try? EncryptionService.loadPrivateKey(),
+               let encryptedKey = try? EncryptionService.encryptGroupKey(groupKey, for: creatorPubKey, senderPrivateKey: privateKey) {
+                encryptedGroupKeys[creatorId] = encryptedKey
+            }
 
             let family = Family(
                 id: familyId,
                 name: familyName,
                 code: familyCode,
                 members: [member],
-                adminId: creatorId
+                adminId: creatorId,
+                encryptedGroupKeys: encryptedGroupKeys
             )
 
-     
             do {
                 try self?.db.collection("families").document(familyId).setData(from: family) {
 error in
@@ -68,7 +75,7 @@ error in
 
     
 
-    func joinFamily(code: String, userId: String, displayName: String, photoBase64: String? = nil, completion:
+    func joinFamily(code: String, userId: String, displayName: String, photoBase64: String? = nil, publicKey: String? = nil, completion:
                     @escaping(Result < Family, Error>) -> Void) {
         db.collection("families")
              .whereField("code", isEqualTo: code)
@@ -99,7 +106,7 @@ error in
                     return
                 }
 
-                let newMember = Member(id: userId, displayName: displayName, photoBase64: photoBase64, joinedAt: Date())
+                let newMember = Member(id: userId, displayName: displayName, photoBase64: photoBase64, joinedAt: Date(), publicKey: publicKey)
 
                 self?.db.collection("families").document(familyId).updateData([
                     "members": FieldValue.arrayUnion([newMember.toDictionary()])
@@ -210,6 +217,7 @@ extension Member {
             "joinedAt": Timestamp(date: joinedAt)
         ]
         if let photoBase64 { dict["photoBase64"] = photoBase64 }
+        if let publicKey { dict["publicKey"] = publicKey }
         return dict
     }
 }

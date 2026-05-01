@@ -13,9 +13,10 @@ import Foundation
       var displayName: String
       var photoBase64: String?
       var joinedAt: Date
+      var publicKey: String?
 
       enum CodingKeys: String, CodingKey {
-          case id, displayName, photoBase64, joinedAt
+          case id, displayName, photoBase64, joinedAt, publicKey
       }
   }
 

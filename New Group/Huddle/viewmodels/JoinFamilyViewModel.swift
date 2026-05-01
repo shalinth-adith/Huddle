@@ -32,7 +32,7 @@ class JoinFamilyViewModel: ObservableObject {
         self.isLoading = true
         self.errorMessage = nil
 
-        familyService.joinFamily(code: familyCode, userId: userId, displayName: userName, photoBase64: authService.photoThumbnailBase64) { result in
+        familyService.joinFamily(code: familyCode, userId: userId, displayName: userName, photoBase64: authService.photoThumbnailBase64, publicKey: authService.currentUser?.publicKey) { result in
             DispatchQueue.main.async {
                 self.isLoading = false
                 switch result {

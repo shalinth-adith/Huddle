@@ -10,7 +10,26 @@ import FirebaseFirestore
 
 class MessageService {
     private let db = Firestore.firestore()
-    
+
+    private func decrypted(_ messages: [HuddleMessage], familyId: String) -> [HuddleMessage] {
+        guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId) else { return messages }
+        return messages.map { msg in
+            var m = msg
+            if let plain = EncryptionService.decrypt(m.content, groupKey: groupKey) {
+                m.content = plain
+            }
+            return m
+        }
+    }
+
+    private func encryptedContent(_ content: String, familyId: String) -> String {
+        guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId),
+              let cipher = try? EncryptionService.encrypt(content, groupKey: groupKey) else {
+            return content
+        }
+        return cipher
+    }
+
     func fetchShoppingItems(familyId: String, completion: @escaping (Result<[HuddleMessage], Error>) -> Void) {
         let query = db.collection("families")
             .document(familyId)
@@ -18,8 +37,9 @@ class MessageService {
             .whereField("type", isEqualTo: MessageType.Shopping.rawValue)
             .order(by: "createdAt", descending: false)
 
-        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { snapshot in
-            try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
+        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { [weak self] snapshot in
+            let msgs = try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
+            return self?.decrypted(msgs, familyId: familyId) ?? msgs
         }
 
         query.getDocuments(source: .cache) { snapshot, _ in
@@ -41,8 +61,21 @@ class MessageService {
               completion: @escaping (Result<HuddleMessage, Error>) -> Void
           ) {
               let messageId = UUID().uuidString
+              let storedContent = encryptedContent(content, familyId: familyId)
 
-              let message = HuddleMessage(
+              let firestoreMessage = HuddleMessage(
+                  id: messageId,
+                  familyID: familyId,
+                  senderID: senderId,
+                  senderName: senderName,
+                  type: .Shopping,
+                  content: storedContent,
+                  photoURL: nil,
+                  isPinned: false,
+                  isCompleted: false,
+                  createdAt: Date()
+              )
+              let returnMessage = HuddleMessage(
                   id: messageId,
                   familyID: familyId,
                   senderID: senderId,
@@ -60,11 +93,11 @@ class MessageService {
                       .document(familyId)
                       .collection("messages")
                       .document(messageId)
-                      .setData(from: message) { error in
+                      .setData(from: firestoreMessage) { error in
                           if let error = error {
                               completion(.failure(error))
                           } else {
-                              completion(.success(message))
+                              completion(.success(returnMessage))
                           }
                       }
               } catch {
@@ -136,8 +169,9 @@ class MessageService {
             .whereField("type", isEqualTo: MessageType.text.rawValue)
             .order(by: "createdAt", descending: false)
 
-        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { snapshot in
-            try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
+        let decode: (QuerySnapshot) throws -> [HuddleMessage] = { [weak self] snapshot in
+            let msgs = try snapshot.documents.compactMap { try $0.data(as: HuddleMessage.self) }
+            return self?.decrypted(msgs, familyId: familyId) ?? msgs
         }
 
         query.getDocuments(source: .cache) { snapshot, _ in
@@ -161,18 +195,15 @@ class MessageService {
          completion: @escaping (Result<HuddleMessage, Error>) -> Void
      ) {
          let messageId = UUID().uuidString
+         let storedContent = encryptedContent(content, familyId: familyId)
 
-         let message = HuddleMessage(
-             id: messageId,
-             familyID: familyId,
-             senderID: senderId,
-             senderName: senderName,
-             type: .text,
-             content: content,
-             photoURL: nil,
-             isPinned: false,
-             isCompleted: false,
-             createdAt: Date()
+         let firestoreMessage = HuddleMessage(
+             id: messageId, familyID: familyId, senderID: senderId, senderName: senderName,
+             type: .text, content: storedContent, photoURL: nil, isPinned: false, isCompleted: false, createdAt: Date()
+         )
+         let returnMessage = HuddleMessage(
+             id: messageId, familyID: familyId, senderID: senderId, senderName: senderName,
+             type: .text, content: content, photoURL: nil, isPinned: false, isCompleted: false, createdAt: Date()
          )
 
          do {
@@ -180,11 +211,11 @@ class MessageService {
                  .document(familyId)
                  .collection("messages")
                  .document(messageId)
-                 .setData(from: message) { error in
+                 .setData(from: firestoreMessage) { error in
                      if let error = error {
                          completion(.failure(error))
                      } else {
-                         completion(.success(message))
+                         completion(.success(returnMessage))
                      }
                  }
          } catch {
@@ -199,28 +230,26 @@ class MessageService {
         completion: @escaping (Result<HuddleMessage, Error>) -> Void
     ) {
         let messageId = UUID().uuidString
-        let message = HuddleMessage(
-            id: messageId,
-            familyID: familyId,
-            senderID: senderId,
-            senderName: senderName,
-            type: .ping,
-            content: content,
-            photoURL: nil,
-            isPinned: false,
-            isCompleted: false,
-            createdAt: Date()
+        let storedContent = encryptedContent(content, familyId: familyId)
+
+        let firestoreMessage = HuddleMessage(
+            id: messageId, familyID: familyId, senderID: senderId, senderName: senderName,
+            type: .ping, content: storedContent, photoURL: nil, isPinned: false, isCompleted: false, createdAt: Date()
+        )
+        let returnMessage = HuddleMessage(
+            id: messageId, familyID: familyId, senderID: senderId, senderName: senderName,
+            type: .ping, content: content, photoURL: nil, isPinned: false, isCompleted: false, createdAt: Date()
         )
         do {
             try db.collection("families")
                 .document(familyId)
                 .collection("messages")
                 .document(messageId)
-                .setData(from: message) { error in
+                .setData(from: firestoreMessage) { error in
                     if let error = error {
                         completion(.failure(error))
                     } else {
-                        completion(.success(message))
+                        completion(.success(returnMessage))
                     }
                 }
         } catch {
@@ -229,12 +258,13 @@ class MessageService {
     }
 
     func sendSystemMessage(familyId: String, content: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let storedContent = encryptedContent(content, familyId: familyId)
         let message = HuddleMessage(
             familyID: familyId,
             senderID: "system",
             senderName: "system",
             type: .system,
-            content: content,
+            content: storedContent,
             isPinned: false,
             isCompleted: false,
             createdAt: Date()
@@ -276,7 +306,7 @@ class MessageService {
                     let messages = try documents.compactMap { doc in
                         try doc.data(as: HuddleMessage.self)
                     }
-                    completion(.success(messages))
+                    completion(.success(self.decrypted(messages, familyId: familyId)))
                 } catch {
                     completion(.failure(error))
                 }

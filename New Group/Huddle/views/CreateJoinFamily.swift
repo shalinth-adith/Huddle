@@ -83,7 +83,7 @@ struct CreateJoinFamily: View {
                 .foregroundColor(Color.huddleTextPrimary)
                 .multilineTextAlignment(.center)
                 .tracking(-0.3)
-            Text("The heart of your family's daily life. Organize, chat, and stay connected with the people who matter most.")
+            Text("The heart of your family's daily life.")
                 .font(.system(size: 16, weight: .regular))
                 .foregroundColor(Color.huddleTextSecondary)
                 .multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct CreateJoinFamily: View {
                         Text("Create Family")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(Color.huddleTextPrimary)
-                        Text("Start a new private space for your household. Invite members and set up your shared calendar and tasks.")
+                        Text("Start a new private space for your household. Invite members .")
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(Color.huddleTextSecondary)
                             .lineSpacing(2)
@@ -146,7 +146,7 @@ struct CreateJoinFamily: View {
                         Text("Join Family")
                             .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(Color.huddleTextPrimary)
-                        Text("Already have a family using Huddle? Enter your unique invitation code to jump right into the conversation.")
+                        Text("Enter your unique invitation code to jump right into the conversation.")
                             .font(.system(size: 14, weight: .regular))
                             .foregroundColor(Color.huddleTextSecondary)
                             .lineSpacing(2)
@@ -202,7 +202,7 @@ struct CreateJoinFamily: View {
     }
 
     private var trustRow: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 40) {
             Label("Encrypted", systemImage: "lock.fill")
                 .frame(maxWidth: .infinity)
             Label("No Ads", systemImage: "hand.raised.slash")

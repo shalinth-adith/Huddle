@@ -28,6 +28,7 @@
       private let familyService: FamilyService
       private let authService: AuthService
       private let messageService: MessageService
+      private let db = Firestore.firestore()
 
       init(familyService: FamilyService, authService: AuthService, messageService: MessageService) {
           self.familyService = familyService
@@ -55,6 +56,7 @@
                   }
                   self.family = fetchedFamily
                   self.isLoading = false
+                  self.setupEncryption(family: fetchedFamily)
               case .failure:
                   self.isLoading = false
               }
@@ -302,6 +304,33 @@
           unreadCount = messages.filter {
               $0.senderID != uid && $0.type != .system && $0.createdAt > lastRead
           }.count
+      }
+
+      func setupEncryption(family: Family) {
+          guard let uid = authService.currentUser?.id,
+                let familyId = family.id else { return }
+
+          // Decrypt group key from Firestore if not already in Keychain
+          if EncryptionService.loadGroupKey(familyId: familyId) == nil,
+             let encryptedForMe = family.encryptedGroupKeys[uid],
+             let privateKey = try? EncryptionService.loadPrivateKey() {
+              let candidateKeys = family.members.compactMap { $0.publicKey }
+              if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
+                  try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
+              }
+          }
+
+          // Distribute group key to any members who don't have it yet
+          guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId),
+                let privateKey = try? EncryptionService.loadPrivateKey() else { return }
+
+          for member in family.members {
+              guard family.encryptedGroupKeys[member.id] == nil,
+                    let memberPublicKey = member.publicKey,
+                    let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
+              db.collection("families").document(familyId)
+                .updateData(["encryptedGroupKeys.\(member.id)": encrypted])
+          }
       }
 
       func cleanup() {
