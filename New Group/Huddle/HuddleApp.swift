@@ -8,16 +8,17 @@
 import SwiftUI
 import FirebaseCore
 import FirebaseAuth
-                                                                                                      
- @main
- struct HuddleApp: App {
-                                                                                                      
-     @StateObject private var authService = AuthService()
-     @State private var openToShopping = false
-                                                                                                      
-     init() {
-         FirebaseApp.configure()
-     }
+
+@main
+struct HuddleApp: App {
+
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var authService = AuthService()
+    @State private var openToShopping = false
+
+    init() {
+        FirebaseApp.configure()
+    }
                                                                                                       
      var body: some Scene {
          WindowGroup {

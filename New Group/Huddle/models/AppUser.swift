@@ -18,9 +18,10 @@ struct AppUser: Codable, Identifiable {
     var familyIds: [String] = []
     var createdAt: Date
     var publicKey: String?
+    var fcmToken: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, PhoneNumber, email, displayName, photoBase64, currentFamilyId, familyIds, createdAt, publicKey
+        case id, PhoneNumber, email, displayName, photoBase64, currentFamilyId, familyIds, createdAt, publicKey, fcmToken
     }
 }
  
