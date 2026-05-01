@@ -19,6 +19,8 @@ struct CreateFamily: View {
         ))
     }
 
+    @State private var showCopiedToast = false
+
     var body: some View {
         ZStack {
             Color.huddleBackground.ignoresSafeArea()
@@ -27,6 +29,22 @@ struct CreateFamily: View {
             } else {
                 inputView
             }
+            if showCopiedToast {
+                VStack {
+                    Spacer()
+                    Text("Code copied!")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(Color.black.opacity(0.75))
+                        .cornerRadius(24)
+                        .padding(.bottom, 60)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                }
+                .zIndex(1)
+                .animation(.easeInOut(duration: 0.2), value: showCopiedToast)
+            }
         }
         .buttonStyle(.plain)
     }
@@ -34,7 +52,7 @@ struct CreateFamily: View {
     // MARK: - Input View
 
     private var inputView: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 80) {
             // Header
             HStack {
                 Text("Huddle")
@@ -222,7 +240,12 @@ struct CreateFamily: View {
                             .lineLimit(1)
 
                         Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             UIPasteboard.general.string = viewModel.generatedCode
+                            withAnimation { showCopiedToast = true }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                withAnimation { showCopiedToast = false }
+                            }
                         }) {
                             Image(systemName: "doc.on.doc")
                                 .font(.system(size: 18))

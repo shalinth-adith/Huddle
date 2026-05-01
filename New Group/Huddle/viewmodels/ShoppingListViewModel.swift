@@ -32,11 +32,8 @@ import Foundation
                   switch result {
                   case .success(let items):
                       self?.shoppingItems = items
-                      print("✅ Loaded \(items.count) shopping items")
-
                   case .failure(let error):
                       self?.errorMessage = error.localizedDescription
-                      print("❌ Error loading items: \(error.localizedDescription)")
                   }
               }
           }
@@ -56,11 +53,8 @@ import Foundation
                   switch result {
                   case .success(let newItem):
                       self?.shoppingItems.append(newItem)
-                      print("✅ Added item: \(newItem.content)")
-
                   case .failure(let error):
                       self?.errorMessage = error.localizedDescription
-                      print("❌ Error adding item: \(error.localizedDescription)")
                   }
               }
           }
@@ -83,14 +77,12 @@ import Foundation
               DispatchQueue.main.async {
                   switch result {
                   case .success:
-                      print("✅ Toggled completion for: \(item.content)")
-
+                      break
                   case .failure(let error):
                       if let index = self?.shoppingItems.firstIndex(where: { $0.id == itemId }) {
                           self?.shoppingItems[index].isCompleted = !newCompletionState
                       }
                       self?.errorMessage = error.localizedDescription
-                      print("❌ Error toggling: \(error.localizedDescription)")
                   }
               }
           }
@@ -106,16 +98,10 @@ import Foundation
               messageId: itemId
           ) { [weak self] result in
               DispatchQueue.main.async {
-                  switch result {
-                  case .success:
-                      print("✅ Deleted item: \(item.content)")
-
-                  case .failure(let error):
+                  if case .failure(let error) = result {
                       self?.errorMessage = error.localizedDescription
-                      print("❌ Error deleting: \(error.localizedDescription)")
                   }
               }
           }
       }
   }
-

@@ -14,7 +14,6 @@ struct ShoppingList: View {
     init(family: Family) {
         self.family = family
         let familyId = family.id ?? ""
-        print("🏠 ShoppingList initialized with familyId: \(familyId)")
         _viewModel = StateObject(wrappedValue: ShoppingListViewModel(familyId: familyId))
     }
 
