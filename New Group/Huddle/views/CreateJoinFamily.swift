@@ -2,8 +2,6 @@
 //  CreateJoinFamily.swift
 //  Huddle
 //
-//  Created by shalinth adithyan on 26/11/25.
-//
 
 import SwiftUI
 
@@ -12,26 +10,147 @@ struct CreateJoinFamily: View {
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
     @State private var showSignOutAlert = false
+    @State private var floatAvatars = false
+
+    private let floatColors: [LushColor] = [.rose, .amber, .coral]
 
     var body: some View {
-        ZStack(alignment: .top) {
-            Color.huddleBackground.ignoresSafeArea()
-            VStack(spacing: 0) {
-                headerBar
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        heroSection
-                        cardsSection
-                        privacyCard
-                        trustRow
+        ZStack {
+            AuroraBackground()
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    // Sign out
+                    HStack {
+                        Spacer()
+                        Button(action: { showSignOutAlert = true }) {
+                            Text("Sign Out")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                                .padding(.horizontal, 14).padding(.vertical, 6)
+                                .background(Color(hex: "281A16").opacity(0.5))
+                                .cornerRadius(20)
+                                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 28)
-                    .padding(.bottom, 48)
+                    .padding(.horizontal, 24).padding(.top, 60)
+
+                    // Avatar with pulse ring
+                    ZStack {
+                        Circle()
+                            .stroke(Color(hex: "FF8A66").opacity(0.18), lineWidth: 1)
+                            .frame(width: 92, height: 92)
+                            .scaleEffect(floatAvatars ? 1.06 : 1.0)
+                            .animation(.easeInOut(duration: 2.5).repeatForever(autoreverses: true), value: floatAvatars)
+                        LushAvatar(
+                            letter: String(authService.currentUser?.displayName.prefix(1) ?? "Y"),
+                            lushColor: .coral,
+                            size: 72,
+                            glow: true,
+                            photoBase64: authService.currentUser?.photoBase64
+                        )
+                    }
+                    .padding(.top, 28).padding(.bottom, 18)
+
+                    let firstName = authService.currentUser?.displayName.components(separatedBy: " ").first ?? "there"
+                    Text("Welcome, \(firstName)")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(.white)
+                        .tracking(-0.8)
+                    Spacer().frame(height: 8)
+                    Text("Let's gather your people.")
+                        .font(.system(size: 15))
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.62))
+                    Spacer().frame(height: 34)
+
+                    // Create family hero card
+                    Button(action: { showCreateFamily = true }) {
+                        ZStack(alignment: .bottomTrailing) {
+                            RoundedRectangle(cornerRadius: 26)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "FF8A66"), Color(hex: "E85A7A"), Color(hex: "6B2B3D")],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                    )
+                                )
+                            Circle()
+                                .fill(Color.white.opacity(0.28))
+                                .frame(width: 140, height: 140)
+                                .blur(radius: 30)
+                                .offset(x: 50, y: -50)
+
+                            VStack(alignment: .leading, spacing: 0) {
+                                HStack {
+                                    Spacer()
+                                    HStack(spacing: -8) {
+                                        ForEach(Array(floatColors.enumerated()), id: \.offset) { i, c in
+                                            LushAvatar(letter: ["A","J","M"][i], lushColor: c, size: 30)
+                                                .offset(y: floatAvatars ? CGFloat([-3,2,-4][i]) : 0)
+                                                .animation(.easeInOut(duration: 2.0 + Double(i) * 0.3).repeatForever(autoreverses: true).delay(Double(i) * 0.2), value: floatAvatars)
+                                        }
+                                    }
+                                }
+                                .padding(.bottom, 14)
+                                ClayIcon(systemImage: "star.fill", lushColor: .amber, size: 48)
+                                Spacer().frame(height: 12)
+                                Text("RECOMMENDED")
+                                    .font(.system(size: 10, weight: .bold)).tracking(1.4)
+                                    .foregroundColor(.white.opacity(0.85))
+                                Spacer().frame(height: 4)
+                                Text("Start a new family")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundColor(.white).tracking(-0.5)
+                                Spacer().frame(height: 4)
+                                Text("You'll get an invite code to share.")
+                                    .font(.system(size: 13)).foregroundColor(.white.opacity(0.78))
+                            }
+                            .padding(22)
+
+                            Circle()
+                                .fill(Color.white.opacity(0.18))
+                                .frame(width: 36, height: 36)
+                                .overlay(Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(.white))
+                                .padding(16)
+                        }
+                        .frame(height: 192)
+                        .shadow(color: Color(hex: "D8512B").opacity(0.4), radius: 20, x: 0, y: 10)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
+
+                    Spacer().frame(height: 14)
+
+                    Button(action: { showJoinFamily = true }) {
+                        GlassCard(padding: 20) {
+                            HStack(spacing: 14) {
+                                ClayIcon(systemImage: "key.fill", lushColor: .plum, size: 48)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("I have a code")
+                                        .font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                                    Text("Join an existing family")
+                                        .font(.system(size: 13)).foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
+
+                    Spacer().frame(height: 30)
+                    Text("🔒  End-to-end encrypted · Private to your family")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.40))
+                    Spacer().frame(height: 48)
                 }
             }
         }
         .buttonStyle(.plain)
+        .ignoresSafeArea()
+        .onAppear { floatAvatars = true }
         .sheet(isPresented: $showCreateFamily) {
             CreateFamily().environmentObject(authService)
         }
@@ -44,174 +163,6 @@ struct CreateJoinFamily: View {
         } message: {
             Text("You'll be signed out and returned to the welcome screen.")
         }
-    }
-
-    private var headerBar: some View {
-        HStack {
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(Color.huddleCoral)
-                Text("Huddle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(Color.huddleCoral)
-            }
-            Spacer()
-            Button(action: { showSignOutAlert = true }) {
-                Text("Sign Out")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.huddleTextTertiary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Color.huddleSecondaryFixed)
-                    .cornerRadius(20)
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(Color.huddleBackground)
-        .overlay(
-            Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder),
-            alignment: .bottom
-        )
-    }
-
-    private var heroSection: some View {
-        VStack(spacing: 10) {
-            Text("Welcome to Your Huddle")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundColor(Color.huddleTextPrimary)
-                .multilineTextAlignment(.center)
-                .tracking(-0.3)
-            Text("The heart of your family's daily life.")
-                .font(.system(size: 16, weight: .regular))
-                .foregroundColor(Color.huddleTextSecondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(3)
-        }
-        .padding(.top, 4)
-    }
-
-    private var cardsSection: some View {
-        VStack(spacing: 14) {
-            // Create Family
-            Button(action: { showCreateFamily = true }) {
-                HStack(alignment: .top, spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.huddlePrimaryFixed)
-                            .frame(width: 56, height: 56)
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 24))
-                            .foregroundColor(Color.huddleCoral)
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Create Family")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                        Text("Start a new private space for your household. Invite members .")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(Color.huddleTextSecondary)
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 4) {
-                            Text("Get Started")
-                                .font(.system(size: 13, weight: .semibold))
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundColor(Color.huddleCoral)
-                        .padding(.top, 2)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(20)
-                .background(Color.huddleCard)
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
-            }
-
-            // Join Family
-            Button(action: { showJoinFamily = true }) {
-                HStack(alignment: .top, spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.huddleSecondaryFixed)
-                            .frame(width: 56, height: 56)
-                        Image(systemName: "key.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(Color.huddleTextSecondary)
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Join Family")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                        Text("Enter your unique invitation code to jump right into the conversation.")
-                            .font(.system(size: 14, weight: .regular))
-                            .foregroundColor(Color.huddleTextSecondary)
-                            .lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 4) {
-                            Text("Enter Code")
-                                .font(.system(size: 13, weight: .semibold))
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 11, weight: .semibold))
-                        }
-                        .foregroundColor(Color.huddleCoral)
-                        .padding(.top, 2)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(20)
-                .background(Color.huddleCard)
-                .cornerRadius(16)
-                .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
-            }
-        }
-    }
-
-    private var privacyCard: some View {
-        HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.huddlePrimaryFixed.opacity(0.6))
-                    .frame(width: 44, height: 44)
-                Image(systemName: "checkmark.shield.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(Color.huddleCoral)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text("SECURE & PRIVATE")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.huddleCoral)
-                    .kerning(0.5)
-                Text("Your safe space for sharing")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Color.huddleTextPrimary)
-                Text("Huddle uses end-to-end encryption for your chats and documents.")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Color.huddleTextSecondary)
-                    .lineSpacing(2)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(Color.huddleCard)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.04), radius: 12, x: 0, y: 4)
-    }
-
-    private var trustRow: some View {
-        HStack(spacing: 40) {
-            Label("Encrypted", systemImage: "lock.fill")
-                .frame(maxWidth: .infinity)
-            Label("No Ads", systemImage: "hand.raised.slash")
-                .frame(maxWidth: .infinity)
-            Label("Auto-Sync", systemImage: "checkmark.icloud.fill")
-                .frame(maxWidth: .infinity)
-        }
-        .font(.system(size: 11, weight: .semibold))
-        .foregroundColor(Color.huddleTextSecondary.opacity(0.6))
     }
 }
 

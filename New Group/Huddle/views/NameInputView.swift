@@ -2,8 +2,6 @@
 //  NameInputView.swift
 //  Huddle
 //
-//  Created by shalinth adithyan on 19/11/25.
-//
 
 import SwiftUI
 import PhotosUI
@@ -13,230 +11,215 @@ struct NameInputView: View {
     @State private var isLoading: Bool = false
     @State private var selectedItem: PhotosPickerItem? = nil
     @State private var profileImage: UIImage? = nil
+    @State private var selectedColorIndex: Int = 0
+    @State private var avatarFloat: CGFloat = 0
 
     let onSubmit: (String, UIImage?) -> Void
     var onBack: (() -> Void)? = nil
 
+    private let avatarColors: [LushColor] = [.coral, .rose, .amber, .plum]
     var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
 
     var body: some View {
         ZStack {
-            Color.huddleBackground.ignoresSafeArea()
+            AuroraBackground(intensity: 0.6)
 
-            // Background accents — isolated so they never rebuild on keystroke
-            ZStack {
-                Circle()
-                    .fill(Color.huddlePrimaryFixed.opacity(0.25))
-                    .frame(width: 260, height: 260)
-                    .offset(x: 140, y: -100)
-                Circle()
-                    .fill(Color.huddleSecondaryFixed.opacity(0.30))
-                    .frame(width: 200, height: 200)
-                    .offset(x: -120, y: 380)
-            }
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 32) {
-                    // Back button + progress dots
-                    HStack {
-                        Button(action: { onBack?() }) {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.huddleTextSecondary)
-                                .padding(10)
-                                .background(Color.huddleCard)
-                                .clipShape(Circle())
-                                .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
-                        }
-                        .opacity(isLoading ? 0.4 : 1)
-                        .disabled(isLoading)
-
-                        Spacer()
-
-                        HStack(spacing: 8) {
-                            Capsule().fill(Color.huddleCoral).frame(width: 40, height: 6)
-                            Capsule().fill(Color.huddleSecondaryFixed).frame(width: 40, height: 6)
-                            Capsule().fill(Color.huddleSecondaryFixed).frame(width: 40, height: 6)
-                        }
-
-                        Spacer()
-
-                        Color.clear.frame(width: 40, height: 40)
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button(action: { onBack?() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.8))
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
+                            .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
                     }
-                    .padding(.top, 24)
+                    .opacity(isLoading ? 0.4 : 1)
+                    .disabled(isLoading)
 
-                    // Main card
-                    VStack(spacing: 24) {
-                        // Avatar — tap to pick a photo
-                        PhotosPicker(selection: $selectedItem, matching: .images) {
-                            ZStack(alignment: .bottomTrailing) {
-                                Circle()
-                                    .fill(Color.huddleSurface)
-                                    .frame(width: 96, height: 96)
-                                    .overlay(
-                                        Group {
-                                            if let img = profileImage {
-                                                Image(uiImage: img)
-                                                    .resizable()
-                                                    .scaledToFill()
-                                            } else {
-                                                Image(systemName: "person.circle")
-                                                    .font(.system(size: 54))
-                                                    .foregroundColor(Color.huddleOutlineVariant)
-                                            }
-                                        }
-                                    )
-                                    .clipShape(Circle())
+                    Spacer()
 
-                                if profileImage != nil {
-                                    // Checkmark badge — replaces camera icon after photo selected
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.system(size: 30, weight: .semibold))
-                                        .foregroundStyle(.white, .green)
-                                        .background(Color.huddleCard.clipShape(Circle()))
-                                        .transition(.scale.combined(with: .opacity))
-                                } else {
-                                    Circle()
-                                        .fill(Color.huddleCoral)
-                                        .frame(width: 32, height: 32)
-                                        .overlay(
-                                            Image(systemName: "camera.fill")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(.white)
-                                        )
-                                        .shadow(color: Color.black.opacity(0.15), radius: 4, x: 0, y: 2)
-                                        .transition(.scale.combined(with: .opacity))
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .onChange(of: selectedItem) { newItem in
-                            Task.detached(priority: .userInitiated) {
-                                guard let data = try? await newItem?.loadTransferable(type: Data.self),
-                                      let raw = UIImage(data: data) else { return }
-                                let thumb = await Task.detached(priority: .userInitiated) {
-                                    let maxDim: CGFloat = 300
-                                    let scale = min(maxDim / raw.size.width, maxDim / raw.size.height)
-                                    let newSize = CGSize(width: raw.size.width * scale, height: raw.size.height * scale)
-                                    return UIGraphicsImageRenderer(size: newSize).image { _ in
-                                        raw.draw(in: CGRect(origin: .zero, size: newSize))
-                                    }
-                                }.value
-                                await MainActor.run {
-                                    withAnimation(.spring(response: 0.3)) {
-                                        profileImage = thumb
-                                    }
-                                }
-                            }
-                        }
-
-                        // Title
-                        VStack(spacing: 12) {
-                            Text("What is Your name?")
-                                .font(.system(size: 30, weight: .semibold))
-                                .foregroundColor(Color.huddleTextPrimary)
-                                .multilineTextAlignment(.center)
-                                .tracking(-0.3)
-                        }
-
-                        // Input field
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Full Name")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Color.huddleTextSecondary)
-                                .padding(.leading, 4)
-
-                            HStack {
-                                TextField("e.g. Alex Henderson", text: $name)
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.huddleTextPrimary)
-                                    .autocorrectionDisabled(true)
-                                Image(systemName: "person")
-                                    .foregroundColor(Color.huddleTextSecondary.opacity(0.4))
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .background(Color.huddleSurface)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        trimmedName.isEmpty ? Color.clear : Color.huddleCoral,
-                                        lineWidth: 2
-                                    )
-                            )
-                        }
-
-                        // Continue button
-                        Button(action: {
-                            guard !trimmedName.isEmpty else { return }
-                            isLoading = true
-                            onSubmit(trimmedName, profileImage)
-                        }) {
-                            Group {
-                                if isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text("Continue")
-                                        .font(.system(size: 15, weight: .semibold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(trimmedName.isEmpty ? Color.huddleTextTertiary.opacity(0.4) : Color.huddleCoral)
-                            .cornerRadius(8)
-                        }
-                        .disabled(trimmedName.isEmpty || isLoading)
-                    }
-                    .padding(28)
-                    .background(Color.huddleCard)
-                    .cornerRadius(16)
-                    .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
-
-                    // Decorative shapes — extracted struct, never rebuilds on parent state changes
-                    NameInputDecorativeShapes()
-                        .drawingGroup()
-                        .allowsHitTesting(false)
-                        .padding(.bottom, 40)
+                    Text("Step 1 of 3")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                .padding(.bottom, 16)
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // Eyebrow + headline
+                        VStack(alignment: .leading, spacing: 8) {
+                            LushEyebrow(text: "Hello there")
+                            Text("What should\nwe call you?")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundColor(.white)
+                                .tracking(-1.0)
+                            Text("This is how your family will see you.")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 32)
+
+                        // Avatar with float animation
+                        VStack(spacing: 14) {
+                            ZStack {
+                                // Breathing ring
+                                Circle()
+                                    .stroke(Color(hex: "FF8A66").opacity(0.20), lineWidth: 1)
+                                    .frame(width: 132, height: 132)
+
+                                if let img = profileImage {
+                                    Image(uiImage: img)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 108, height: 108)
+                                        .clipShape(Circle())
+                                        .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.3), lineWidth: 2))
+                                } else {
+                                    LushAvatar(
+                                        letter: trimmedName.isEmpty ? "?" : String(trimmedName.prefix(1)),
+                                        lushColor: avatarColors[selectedColorIndex],
+                                        size: 108,
+                                        glow: true
+                                    )
+                                }
+                            }
+                            .offset(y: avatarFloat)
+                            .onAppear {
+                                withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) { avatarFloat = -6 }
+                            }
+
+                            // Photo picker + color swatches
+                            if profileImage == nil {
+                                HStack(spacing: 10) {
+                                    ForEach(0..<4) { i in
+                                        Button(action: { withAnimation(.spring(response: 0.3)) { selectedColorIndex = i } }) {
+                                            Circle()
+                                                .fill(LinearGradient(colors: avatarColors[i].gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                                .frame(width: 30, height: 30)
+                                                .overlay(
+                                                    Circle().stroke(Color.white.opacity(selectedColorIndex == i ? 0.9 : 0), lineWidth: 2)
+                                                )
+                                                .scaleEffect(selectedColorIndex == i ? 1.15 : 1.0)
+                                        }
+                                    }
+                                }
+                            } else {
+                                PhotosPicker(selection: $selectedItem, matching: .images) {
+                                    Label("Change photo", systemImage: "camera.fill")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(Color(hex: "FF8A66"))
+                                }
+                            }
+                        }
+                        .padding(.bottom, 32)
+
+                        // Name input + inline next button
+                        HStack(spacing: 0) {
+                            PhotosPicker(selection: $selectedItem, matching: .images) {
+                                Image(systemName: "camera.circle.fill")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(Color(hex: "FF8A66").opacity(0.7))
+                                    .padding(.leading, 16)
+                            }
+
+                            TextField("Your name…", text: $name)
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(.white)
+                                .autocorrectionDisabled(true)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 14)
+
+                            Button(action: {
+                                guard !trimmedName.isEmpty else { return }
+                                isLoading = true
+                                onSubmit(trimmedName, profileImage)
+                            }) {
+                                HStack(spacing: 5) {
+                                    if isLoading {
+                                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)).scaleEffect(0.8)
+                                    } else {
+                                        Text("Next")
+                                            .font(.system(size: 14, weight: .semibold))
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .semibold))
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 16)
+                                .frame(height: 48)
+                                .background {
+                                    if trimmedName.isEmpty {
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(Color(hex: "F5E9E2").opacity(0.1))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .fill(LinearGradient(
+                                                colors: [Color(hex: "FFA078"), Color(hex: "D8512B")],
+                                                startPoint: .top, endPoint: .bottom
+                                            ))
+                                    }
+                                }
+                            }
+                            .disabled(trimmedName.isEmpty || isLoading)
+                            .padding(.trailing, 4)
+                        }
+                        .background(
+                            RoundedRectangle(cornerRadius: 18)
+                                .fill(Color(hex: "281A16").opacity(0.55))
+                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "FFC8AA").opacity(0.16), lineWidth: 1))
+                        )
+                        .shadow(color: .black.opacity(0.4), radius: 12, x: 0, y: 6)
+                        .padding(.horizontal, 24)
+
+                        Text("Tip — short names work best.")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                            .padding(.top, 10)
+                            .padding(.horizontal, 24)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Spacer().frame(height: 100)
+                    }
+                }
+            }
+
+            // Progress dots
+            VStack {
+                Spacer()
+                HStack(spacing: 6) {
+                    Capsule().fill(Color(hex: "FF8A66")).frame(width: 28, height: 4)
+                    Capsule().fill(Color(hex: "FF8A66").opacity(0.25)).frame(width: 14, height: 4)
+                    Capsule().fill(Color(hex: "FF8A66").opacity(0.25)).frame(width: 14, height: 4)
+                }
+                .padding(.bottom, 38)
             }
         }
         .buttonStyle(.plain)
-    }
-}
-
-private struct NameInputDecorativeShapes: View {
-    var body: some View {
-        HStack(spacing: 36) {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.huddlePrimaryFixed)
-                .frame(width: 52, height: 52)
-                .rotationEffect(.degrees(12))
-            Circle()
-                .fill(Color.huddleSecondaryFixed)
-                .frame(width: 38, height: 38)
-                .offset(y: 10)
-            ZStack {
-                Circle()
-                    .strokeBorder(
-                        Color.huddleOutlineVariant,
-                        style: StrokeStyle(lineWidth: 2, dash: [4])
-                    )
-                    .frame(width: 60, height: 60)
-                Circle()
-                    .fill(Color.huddlePrimaryFixed.opacity(0.6))
-                    .frame(width: 14, height: 14)
+        .ignoresSafeArea()
+        .onChange(of: selectedItem) { newItem in
+            Task.detached(priority: .userInitiated) {
+                guard let data = try? await newItem?.loadTransferable(type: Data.self),
+                      let raw = UIImage(data: data) else { return }
+                let thumb = await Task.detached(priority: .userInitiated) {
+                    let maxDim: CGFloat = 300
+                    let scale = min(maxDim / raw.size.width, maxDim / raw.size.height)
+                    let newSize = CGSize(width: raw.size.width * scale, height: raw.size.height * scale)
+                    return UIGraphicsImageRenderer(size: newSize).image { _ in raw.draw(in: CGRect(origin: .zero, size: newSize)) }
+                }.value
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.3)) { profileImage = thumb }
+                }
             }
         }
-        .opacity(0.2)
     }
 }
 
 #Preview {
-    NameInputView(onSubmit: { name, _ in print("Name submitted: \(name)") })
+    NameInputView(onSubmit: { _, _ in })
 }

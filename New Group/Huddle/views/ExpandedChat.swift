@@ -15,7 +15,7 @@ struct ExpandedChat: View {
 
     var body: some View {
         ZStack {
-            Color.huddleBackground.ignoresSafeArea()
+            Color(hex: "0E0809").ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
@@ -45,29 +45,41 @@ struct ExpandedChat: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(viewModel.family?.name ?? "Chat")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Color.huddleTextPrimary)
-                Text("\(viewModel.family?.members.count ?? 0) members · end-to-end encrypted")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.huddleTextTertiary)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .tracking(-0.3)
+                HStack(spacing: 5) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(Color(hex: "FF8A66").opacity(0.7))
+                    Text("\(viewModel.family?.members.count ?? 0) members · end-to-end encrypted")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                }
             }
             Spacer()
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.huddleTextTertiary)
-                    .padding(8)
-                    .background(Color.huddleSecondaryFixed)
-                    .clipShape(Circle())
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
+                    .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
             }
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(Color.huddleBackground)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .bottom)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
+        .background(Color(hex: "0E0809"))
+        .overlay(
+            Rectangle()
+                .fill(Color(hex: "FFC8AA").opacity(0.08))
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 
     // MARK: - Message list
@@ -127,9 +139,19 @@ struct ExpandedChat: View {
         else if Calendar.current.isDateInYesterday(date) { label = "Yesterday" }
         else { let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none; label = f.string(from: date) }
         return HStack(spacing: 10) {
-            Rectangle().fill(Color.huddleBorder).frame(height: 1)
-            Text(label).font(.system(size: 11, weight: .semibold)).foregroundColor(Color.huddleTextTertiary).fixedSize()
-            Rectangle().fill(Color.huddleBorder).frame(height: 1)
+            Rectangle().fill(Color(hex: "FFC8AA").opacity(0.1)).frame(height: 1)
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
+                .fixedSize()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color(hex: "281A16").opacity(0.55))
+                        .overlay(Capsule().stroke(Color(hex: "FFC8AA").opacity(0.1), lineWidth: 1))
+                )
+            Rectangle().fill(Color(hex: "FFC8AA").opacity(0.1)).frame(height: 1)
         }
     }
 
@@ -138,7 +160,7 @@ struct ExpandedChat: View {
     private func systemRow(_ message: HuddleMessage) -> some View {
         Text(message.content)
             .font(.system(size: 12))
-            .foregroundColor(Color.huddleTextTertiary)
+            .foregroundColor(Color(hex: "F5E9E2").opacity(0.35))
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
     }
@@ -146,20 +168,23 @@ struct ExpandedChat: View {
     private func pingRow(_ message: HuddleMessage) -> some View {
         let label = message.content.replacingOccurrences(of: "📍", with: "").trimmingCharacters(in: .whitespaces)
         return HStack(spacing: 12) {
-            Text("📍").font(.system(size: 26))
+            Text("📍").font(.system(size: 24))
             VStack(alignment: .leading, spacing: 2) {
                 Text(label.isEmpty ? "Ping" : label)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.huddleTextPrimary)
+                    .foregroundColor(.white)
                 Text("\(message.senderName) · \(formatTime(message.createdAt))")
-                    .font(.caption).foregroundColor(Color.huddleTextTertiary)
+                    .font(.caption)
+                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
             }
             Spacer()
         }
         .padding(12)
-        .background(Color.huddleCoral.opacity(0.10))
-        .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.huddleCoral.opacity(0.25), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(hex: "FF8A66").opacity(0.08))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "FF8A66").opacity(0.22), lineWidth: 1))
+        )
     }
 
     private func chatRow(_ message: HuddleMessage, firstInGroup: Bool) -> some View {
@@ -178,16 +203,39 @@ struct ExpandedChat: View {
                 if !isMe && firstInGroup {
                     Text(message.senderName)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color.huddleTextSecondary)
-                        .padding(.leading, 2)
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                        .padding(.leading, 4)
                 }
+
                 Text(message.content)
                     .font(.system(size: 15))
-                    .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
+                    .foregroundColor(isMe ? .white : Color(hex: "F5E9E2"))
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(isMe ? Color.huddleCoral : Color.huddleSurface)
-                    .cornerRadius(18)
+                    .background(
+                        Group {
+                            if isMe {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [Color(hex: "FFA078"), Color(hex: "D8512B")],
+                                            startPoint: .topLeading, endPoint: .bottomTrailing
+                                        )
+                                    )
+                            } else {
+                                RoundedRectangle(cornerRadius: 18)
+                                    .fill(Color(hex: "281A16").opacity(0.65))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 18)
+                                            .stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                    )
+                            }
+                        }
+                    )
+                    .shadow(
+                        color: isMe ? Color(hex: "D8512B").opacity(0.25) : Color.black.opacity(0.15),
+                        radius: isMe ? 6 : 4, x: 0, y: 2
+                    )
                     .onLongPressGesture(minimumDuration: 0.4) {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { reactingTo = message }
@@ -199,7 +247,7 @@ struct ExpandedChat: View {
 
                 Text(formatTime(message.createdAt))
                     .font(.system(size: 10))
-                    .foregroundColor(Color.huddleTextTertiary)
+                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
             }
 
             if !isMe { Spacer(minLength: 60) }
@@ -222,13 +270,20 @@ struct ExpandedChat: View {
                         if users.count > 1 {
                             Text("\(users.count)")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(isMine ? Color.huddleCoral : Color.huddleTextTertiary)
+                                .foregroundColor(isMine ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.4))
                         }
                     }
                     .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(isMine ? Color.huddleCoral.opacity(0.12) : Color.huddleSecondaryFixed)
-                    .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(isMine ? Color.huddleCoral.opacity(0.4) : Color.clear, lineWidth: 1))
+                    .background(
+                        Capsule()
+                            .fill(isMine ? Color(hex: "FF8A66").opacity(0.12) : Color(hex: "281A16").opacity(0.55))
+                            .overlay(
+                                Capsule().stroke(
+                                    isMine ? Color(hex: "FF8A66").opacity(0.35) : Color(hex: "FFC8AA").opacity(0.1),
+                                    lineWidth: 1
+                                )
+                            )
+                    )
                 }
             }
         }
@@ -238,10 +293,10 @@ struct ExpandedChat: View {
 
     private func reactionOverlay(for message: HuddleMessage) -> some View {
         ZStack(alignment: .bottom) {
-            Color.black.opacity(0.25).ignoresSafeArea()
+            Color.black.opacity(0.4).ignoresSafeArea()
                 .onTapGesture { withAnimation { reactingTo = nil } }
 
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 ForEach(reactionEmojis, id: \.self) { emoji in
                     Button(action: {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -249,19 +304,23 @@ struct ExpandedChat: View {
                         withAnimation { reactingTo = nil }
                     }) {
                         Text(emoji)
-                            .font(.system(size: 30))
-                            .padding(10)
-                            .background(Color.huddleCard)
-                            .clipShape(Circle())
-                            .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+                            .font(.system(size: 28))
+                            .frame(width: 48, height: 48)
+                            .background(
+                                Circle()
+                                    .fill(Color(hex: "281A16").opacity(0.8))
+                                    .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                            )
                     }
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 14)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(Color.huddleCard)
-                    .shadow(color: Color.black.opacity(0.15), radius: 16, x: 0, y: -4)
+                RoundedRectangle(cornerRadius: 28)
+                    .fill(Color(hex: "1A1210").opacity(0.95))
+                    .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color(hex: "FFC8AA").opacity(0.1), lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: -4)
             )
             .padding(.horizontal, 20)
             .padding(.bottom, 90)
@@ -277,70 +336,130 @@ struct ExpandedChat: View {
                 showPingTray = true
             } label: {
                 Image(systemName: "mappin.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundColor(Color.huddleCoral)
+                    .font(.system(size: 26))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
             }
 
             HStack(spacing: 8) {
                 TextField("Message your family...", text: $messageText)
                     .font(.system(size: 15))
-                    .foregroundColor(Color.huddleTextPrimary)
+                    .foregroundColor(.white)
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
                 if !messageText.isEmpty {
                     Button(action: { messageText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(Color.huddleTextTertiary.opacity(0.5))
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
                     }
                 }
             }
-            .padding(.horizontal, 14).padding(.vertical, 11)
-            .background(Color.huddleBackground)
-            .cornerRadius(24)
-            .overlay(RoundedRectangle(cornerRadius: 24).stroke(isInputFocused ? Color.huddleCoral : Color.huddleBorder, lineWidth: 1.5))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .background(
+                Capsule()
+                    .fill(Color(hex: "281A16").opacity(0.55))
+                    .overlay(
+                        Capsule().stroke(
+                            isInputFocused ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.14),
+                            lineWidth: 1
+                        )
+                    )
+            )
 
             Button(action: sendMessage) {
                 Image(systemName: "paperplane.fill")
-                    .font(.system(size: 16)).foregroundColor(.white)
-                    .frame(width: 44, height: 44)
-                    .background(messageText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.huddleTextTertiary.opacity(0.3) : Color.huddleCoral)
-                    .clipShape(Circle())
+                    .font(.system(size: 14))
+                    .foregroundColor(.white)
+                    .frame(width: 42, height: 42)
+                    .background(
+                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
+                            ? AnyView(Circle().fill(Color(hex: "281A16").opacity(0.55)))
+                            : AnyView(
+                                Circle().fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: "FFA078"), Color(hex: "D8512B")],
+                                        startPoint: .top, endPoint: .bottom
+                                    )
+                                )
+                                .shadow(color: Color(hex: "D8512B").opacity(0.4), radius: 6, x: 0, y: 2)
+                            )
+                    )
             }
             .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(Color.huddleCard)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder), alignment: .top)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            Color(hex: "0E0809")
+                .overlay(
+                    Rectangle()
+                        .fill(Color(hex: "FFC8AA").opacity(0.08))
+                        .frame(height: 1),
+                    alignment: .top
+                )
+        )
     }
 
     // MARK: - Ping tray
 
     private var pingTrayView: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Send a ping").font(.headline).padding(.horizontal)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(pingOptions, id: \.self) { label in
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        viewModel.sendPing(content: "📍 \(label)")
-                        showPingTray = false
-                    } label: {
-                        HStack(spacing: 10) {
-                            Text("📍").font(.title2)
-                            Text(label).font(.subheadline).fontWeight(.medium)
-                            Spacer()
-                        }
-                        .padding(12)
-                        .background(Color.huddleSurface)
-                        .cornerRadius(12)
+        ZStack {
+            Color(hex: "0E0809").ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Send a ping")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundColor(.white)
+                            .tracking(-0.4)
+                        Text("Quick status update for your family")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
                     }
-                    .foregroundColor(Color.huddleTextPrimary)
+                    Spacer()
                 }
+                .padding(.horizontal, 20)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(pingOptions, id: \.self) { label in
+                        Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            viewModel.sendPing(content: "📍 \(label)")
+                            showPingTray = false
+                        } label: {
+                            HStack(spacing: 10) {
+                                Text("📍").font(.system(size: 18))
+                                Text(label)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 13)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color(hex: "281A16").opacity(0.55))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                Spacer()
             }
-            .padding(.horizontal)
+            .padding(.top, 28)
         }
-        .padding(.top, 20).padding(.bottom, 8)
     }
 
     // MARK: - Helpers

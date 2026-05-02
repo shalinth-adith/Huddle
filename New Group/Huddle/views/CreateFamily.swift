@@ -2,8 +2,6 @@
 //  CreateFamily.swift
 //  Huddle
 //
-//  Created by shalinth adithyan on 27/11/25.
-//
 
 import SwiftUI
 
@@ -11,6 +9,13 @@ struct CreateFamily: View {
     @EnvironmentObject var authService: AuthService
     @StateObject private var viewModel: CreateFamilyViewModel
     @Environment(\.dismiss) var dismiss
+    @State private var selectedVibe = 0
+    @State private var showCopiedToast = false
+    @State private var cursorVisible = true
+
+    private let vibes: [(emoji: String, label: String)] = [
+        ("🏡", "Cozy nest"), ("🏔️", "Adventure crew"), ("🌿", "Calm garden"), ("🎨", "Creative chaos")
+    ]
 
     init() {
         _viewModel = StateObject(wrappedValue: CreateFamilyViewModel(
@@ -19,24 +24,23 @@ struct CreateFamily: View {
         ))
     }
 
-    @State private var showCopiedToast = false
-
     var body: some View {
         ZStack {
-            Color.huddleBackground.ignoresSafeArea()
+            AuroraBackground(intensity: 0.6)
+
             if viewModel.showSuccess {
                 successView
             } else {
                 inputView
             }
+
             if showCopiedToast {
                 VStack {
                     Spacer()
                     Text("Code copied!")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(.white)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, 20).padding(.vertical, 12)
                         .background(Color.black.opacity(0.75))
                         .cornerRadius(24)
                         .padding(.bottom, 60)
@@ -47,258 +51,212 @@ struct CreateFamily: View {
             }
         }
         .buttonStyle(.plain)
+        .ignoresSafeArea()
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { cursorVisible = false }
+        }
     }
 
-    // MARK: - Input View
+    // MARK: - Input
 
     private var inputView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Huddle")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundColor(Color.huddleCoral)
-                Spacer()
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color.huddleTextTertiary)
-                        .padding(8)
-                        .background(Color.huddleSecondaryFixed)
-                        .clipShape(Circle())
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
+                        .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
                 }
+                Spacer()
+                Text("Step 2 of 3")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
-            .background(Color.huddleBackground)
-            .overlay(
-                Rectangle().frame(height: 1).foregroundColor(Color.huddleBorder),
-                alignment: .bottom
-            )
+            .padding(.horizontal, 20).padding(.top, 60).padding(.bottom, 16)
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 24) {
-                    // Heading
-                    VStack(spacing: 8) {
-                        Text("Create your Family")
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                            .multilineTextAlignment(.center)
-                            .tracking(-0.5)
-                        Text("Start your private digital huddle today.")
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(Color.huddleTextTertiary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.top, 32)
+                VStack(alignment: .leading, spacing: 0) {
+                    LushEyebrow(text: "Your Huddle")
+                    Spacer().frame(height: 8)
+                    Text("Name your\nfamily.")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.white).tracking(-1.0)
+                    Spacer().frame(height: 8)
+                    Text("You can rename it later.")
+                        .font(.system(size: 14))
+                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
 
-                    // Input
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Family Name")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(Color.huddleTextSecondary)
-                            .padding(.leading, 4)
+                    Spacer().frame(height: 24)
 
-                        TextField("e.g. The Anderson Family", text: $viewModel.familyName)
-                            .font(.system(size: 16))
-                            .foregroundColor(Color.huddleTextPrimary)
-                            .autocorrectionDisabled(true)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            .background(Color.huddleSurface)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(
-                                        viewModel.familyName.isEmpty ? Color.clear : Color.huddleCoral,
-                                        lineWidth: 2
-                                    )
-                            )
-                    }
-
-                    if let error = viewModel.errorMessage {
-                        Text(error)
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "BA1A1A"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.leading, 4)
-                    }
-
-                    // Privacy info box
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "checkmark.shield.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(Color.huddleCoral)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Privacy is our priority")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.huddleTextPrimary)
-                            Text("Your family data is end-to-end encrypted. Only members you explicitly invite can see your content.")
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundColor(Color.huddleTextTertiary)
-                                .lineSpacing(2)
-                        }
-                    }
-                    .padding(16)
-                    .background(Color.huddleCoral.opacity(0.05))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.huddleCoral.opacity(0.1), lineWidth: 1)
-                    )
-
-                    // Create button
-                    Button(action: viewModel.createFamily) {
-                        Group {
-                            if viewModel.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Create Family")
-                                    .font(.system(size: 16, weight: .semibold))
+                    // Live preview card
+                    GlassCard(padding: 18, isHero: true) {
+                        HStack(spacing: 14) {
+                            ClayIcon(systemImage: "heart.fill", lushColor: .rose, size: 52, glow: true)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("FAMILY NAME")
+                                    .font(.system(size: 10, weight: .bold)).tracking(1.2)
+                                    .foregroundColor(Color(hex: "FFB68A").opacity(0.85))
+                                HStack(spacing: 0) {
+                                    Text(viewModel.familyName.isEmpty ? "Your family name" : viewModel.familyName)
+                                        .font(.system(size: 20, weight: .bold))
+                                        .foregroundColor(viewModel.familyName.isEmpty ? Color(hex: "F5E9E2").opacity(0.35) : .white)
+                                        .tracking(-0.5)
+                                    if !viewModel.familyName.isEmpty {
+                                        Rectangle()
+                                            .fill(Color(hex: "FF8A66"))
+                                            .frame(width: 2, height: 20)
+                                            .opacity(cursorVisible ? 1 : 0)
+                                    }
+                                }
                             }
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            viewModel.isCreateButtonDisabled
-                                ? Color.huddleTextTertiary.opacity(0.4)
-                                : Color.huddleCoral
-                        )
-                        .cornerRadius(8)
-                        .shadow(
-                            color: viewModel.isCreateButtonDisabled ? .clear : Color.huddleCoral.opacity(0.3),
-                            radius: 8, x: 0, y: 4
-                        )
                     }
-                    .disabled(viewModel.isCreateButtonDisabled)
 
-                    Text("By creating a family, you agree to our Terms of Service and Privacy Policy.")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.huddleTextTertiary)
-                        .multilineTextAlignment(.center)
+                    Spacer().frame(height: 20)
 
-                    // Trust icons
-                    HStack(spacing: 0) {
-                        Label("Secure", systemImage: "lock.fill")
-                            .frame(maxWidth: .infinity)
-                        Label("Unlimited Members", systemImage: "person.2.fill")
-                            .frame(maxWidth: .infinity)
-                        Label("Cloud Sync", systemImage: "checkmark.icloud.fill")
-                            .frame(maxWidth: .infinity)
+                    // Name input
+                    HStack {
+                        TextField("e.g. The Sharma's", text: $viewModel.familyName)
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .autocorrectionDisabled(true)
                     }
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.huddleTextSecondary.opacity(0.6))
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 16).padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(hex: "281A16").opacity(0.55))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(viewModel.familyName.isEmpty ? Color(hex: "FFC8AA").opacity(0.14) : Color(hex: "FF8A66").opacity(0.5), lineWidth: 1)
+                            )
+                    )
+
+                    Spacer().frame(height: 24)
+
+                    // Vibe selector
+                    LushEyebrow(text: "Family Vibe")
+                    Spacer().frame(height: 12)
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(vibes.indices, id: \.self) { i in
+                            let v = vibes[i]
+                            Button(action: { withAnimation(.spring(response: 0.25)) { selectedVibe = i } }) {
+                                HStack(spacing: 10) {
+                                    Text(v.emoji).font(.system(size: 20))
+                                    Text(v.label)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(selectedVibe == i ? .white : Color(hex: "F5E9E2").opacity(0.7))
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14).padding(.vertical, 13)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .fill(selectedVibe == i
+                                              ? LinearGradient(colors: [Color(hex: "FF8A66").opacity(0.22), Color(hex: "E85A7A").opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                                              : LinearGradient(colors: [Color(hex: "281A16").opacity(0.5)], startPoint: .top, endPoint: .bottom))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(selectedVibe == i ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                        )
+                                )
+                                .shadow(color: selectedVibe == i ? Color(hex: "FF8A66").opacity(0.2) : .clear, radius: 10, x: 0, y: 4)
+                            }
+                        }
+                    }
+
+                    Spacer().frame(height: 80)
                 }
                 .padding(.horizontal, 24)
             }
         }
+        .overlay(
+            VStack {
+                Spacer()
+                VStack(spacing: 0) {
+                    if let err = viewModel.errorMessage {
+                        Text(err).font(.system(size: 13)).foregroundColor(Color(hex: "FF6B6B"))
+                            .padding(.bottom, 8)
+                    }
+                    EmberButton(
+                        label: "Create my family",
+                        systemImage: "star.fill",
+                        isLoading: viewModel.isLoading,
+                        isDisabled: viewModel.familyName.trimmingCharacters(in: .whitespaces).isEmpty
+                    ) { viewModel.createFamily() }
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 38)
+                .background(
+                    LinearGradient(colors: [.clear, Color(hex: "0E0809").opacity(0.9), Color(hex: "0E0809")], startPoint: .top, endPoint: .bottom)
+                        .ignoresSafeArea()
+                )
+            }
+        )
     }
 
-    // MARK: - Success View
+    // MARK: - Success
 
     private var successView: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 32) {
-                // Check icon
-                ZStack {
-                    Circle()
-                        .fill(Color.huddleCoral.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 48))
-                        .foregroundColor(Color.huddleCoral)
-                }
-                .padding(.top, 48)
+        VStack(spacing: 28) {
+            Spacer()
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "FF8A66").opacity(0.12))
+                    .frame(width: 100, height: 100)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(LinearGradient(colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
+            }
+            VStack(spacing: 10) {
+                Text("Your Huddle is ready!")
+                    .font(.system(size: 26, weight: .bold)).foregroundColor(.white).tracking(-0.5)
+                Text(viewModel.familyName)
+                    .font(.system(size: 20, weight: .semibold)).foregroundColor(Color(hex: "FF8A66"))
+                Text("Share your invite code with family members so they can join.")
+                    .font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.65))
+                    .multilineTextAlignment(.center).lineSpacing(3).padding(.horizontal, 16)
+            }
 
-                VStack(spacing: 12) {
-                    Text("Success!")
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundColor(Color.huddleTextPrimary)
-                    Text("Your Huddle family group has been created. Use the code below to invite your loved ones.")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color.huddleTextTertiary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
-                }
-
-                // Family code card
-                VStack(spacing: 8) {
-                    Text("UNIQUE FAMILY CODE")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color.huddleTextTertiary)
-                        .kerning(0.6)
-
-                    HStack(spacing: 12) {
-                        Text(viewModel.generatedCode)
-                            .font(.system(size: 40, weight: .semibold))
-                            .foregroundColor(Color.huddleCoral)
-                            .tracking(4)
-                            .minimumScaleFactor(0.6)
-                            .lineLimit(1)
-
-                        Button(action: {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            UIPasteboard.general.string = viewModel.generatedCode
-                            withAnimation { showCopiedToast = true }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                withAnimation { showCopiedToast = false }
-                            }
-                        }) {
-                            Image(systemName: "doc.on.doc")
-                                .font(.system(size: 18))
-                                .foregroundColor(Color.huddleTextTertiary)
-                                .padding(8)
-                                .background(Color.huddleCoral.opacity(0.06))
-                                .cornerRadius(8)
-                        }
-                    }
+            GlassCard(padding: 20) {
+                VStack(spacing: 6) {
+                    Text(viewModel.generatedCode)
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(Color(hex: "FF8A66")).tracking(6)
+                    Text("family invite code")
+                        .font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 24)
-                .padding(.horizontal, 20)
-                .background(Color.huddleBackground)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.huddleOutlineVariant, lineWidth: 1)
-                )
-
-                // Action buttons
-                VStack(spacing: 12) {
-                    ShareLink(item: viewModel.generatedCode) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 15, weight: .semibold))
-                            Text("Share with Family")
-                                .font(.system(size: 15, weight: .semibold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.huddleCoral)
-                        .cornerRadius(8)
-                    }
-
-                    Button(action: { dismiss() }) {
-                        Text("Done")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(Color.huddleTextPrimary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.huddleCard)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.huddleBorder, lineWidth: 1.5)
-                            )
-                    }
-                }
-                .padding(.bottom, 48)
+                .padding(.vertical, 10)
             }
             .padding(.horizontal, 24)
+
+            HStack(spacing: 12) {
+                Button(action: {
+                    UIPasteboard.general.string = viewModel.generatedCode
+                    withAnimation { showCopiedToast = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { withAnimation { showCopiedToast = false } }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.on.doc").font(.system(size: 13))
+                        Text("Copy Code").font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundColor(Color(hex: "FF8A66"))
+                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "281A16").opacity(0.55))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "FF8A66").opacity(0.3), lineWidth: 1)))
+                }
+                Button(action: { dismiss() }) {
+                    Text("Continue")
+                        .font(.system(size: 14, weight: .semibold)).foregroundColor(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 14)
+                        .background(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom).cornerRadius(14))
+                }
+            }
+            .padding(.horizontal, 24)
+            Spacer()
         }
     }
 }
