@@ -14,6 +14,7 @@ struct HuddleApp: App {
 
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var authService = AuthService()
+    @StateObject private var serviceContainer = ServiceContainer()
     @State private var openToShopping = false
     @AppStorage("huddleColorScheme") private var colorSchemePreference: Int = 0
 
@@ -33,6 +34,7 @@ struct HuddleApp: App {
          WindowGroup {
              RootView(authService: authService, openToShopping: $openToShopping)
                  .environmentObject(authService)
+                 .environmentObject(serviceContainer)
                  .onOpenURL { url in
                      handleDeepLink(url)
                  }

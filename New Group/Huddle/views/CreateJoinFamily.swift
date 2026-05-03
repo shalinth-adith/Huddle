@@ -7,6 +7,7 @@ import SwiftUI
 
 struct CreateJoinFamily: View {
     @EnvironmentObject var authService: AuthService
+    @EnvironmentObject var serviceContainer: ServiceContainer
     @State private var showCreateFamily = false
     @State private var showJoinFamily = false
     @State private var showSignOutAlert = false
@@ -152,10 +153,12 @@ struct CreateJoinFamily: View {
         .ignoresSafeArea()
         .onAppear { floatAvatars = true }
         .sheet(isPresented: $showCreateFamily) {
-            CreateFamily().environmentObject(authService)
+            CreateFamily(familyService: serviceContainer.familyService, authService: authService)
+                .environmentObject(authService)
         }
         .sheet(isPresented: $showJoinFamily) {
-            JoinFamily(authService: authService).environmentObject(authService)
+            JoinFamily(familyService: serviceContainer.familyService, authService: authService)
+                .environmentObject(authService)
         }
         .alert("Sign Out?", isPresented: $showSignOutAlert) {
             Button("Sign Out", role: .destructive) { authService.signOut() }
@@ -167,5 +170,7 @@ struct CreateJoinFamily: View {
 }
 
 #Preview {
-    CreateJoinFamily().environmentObject(AuthService())
+    CreateJoinFamily()
+        .environmentObject(AuthService())
+        .environmentObject(ServiceContainer())
 }

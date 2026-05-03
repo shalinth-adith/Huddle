@@ -13,11 +13,12 @@ import Foundation
       @Published var isLoading = true
       @Published var errorMessage: String?
 
-      private let messageService = MessageService()
+      private let messageService: MessageService
       private let familyId: String
 
-      init(familyId: String) {
+      init(familyId: String, messageService: MessageService) {
           self.familyId = familyId
+          self.messageService = messageService
       }
 
 

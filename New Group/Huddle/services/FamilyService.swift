@@ -206,6 +206,10 @@ error in
         }
     }
 
+    func updateEncryptedGroupKey(familyId: String, userId: String, encryptedKey: String) {
+        db.collection("families").document(familyId)
+            .updateData(["encryptedGroupKeys.\(userId)": encryptedKey])
+    }
 }
 
 

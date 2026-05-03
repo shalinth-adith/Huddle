@@ -7,7 +7,6 @@
   import Foundation
   import SwiftUI
   import Combine
-  import FirebaseFirestore
 
   class FamilyFeedViewModel: ObservableObject {
       @Published var family: Family?
@@ -28,7 +27,6 @@
       private let familyService: FamilyService
       private let authService: AuthService
       private let messageService: MessageService
-      private let db = Firestore.firestore()
 
       init(familyService: FamilyService, authService: AuthService, messageService: MessageService) {
           self.familyService = familyService
@@ -348,8 +346,11 @@
                   guard groupKeys[member.id] == nil,
                         let memberPublicKey = member.publicKey,
                         let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
-                  self.db.collection("families").document(familyId)
-                    .updateData(["encryptedGroupKeys.\(member.id)": encrypted])
+                  self.familyService.updateEncryptedGroupKey(
+                      familyId: familyId,
+                      userId: member.id,
+                      encryptedKey: encrypted
+                  )
               }
           }
       }

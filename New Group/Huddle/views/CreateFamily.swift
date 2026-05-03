@@ -18,10 +18,10 @@ struct CreateFamily: View {
         ("🏡", "Cozy nest"), ("🏔️", "Adventure crew"), ("🌿", "Calm garden"), ("🎨", "Creative chaos")
     ]
 
-    init() {
+    init(familyService: FamilyService, authService: AuthService) {
         _viewModel = StateObject(wrappedValue: CreateFamilyViewModel(
-            familyService: FamilyService(),
-            authService: AuthService()
+            familyService: familyService,
+            authService: authService
         ))
     }
 
@@ -265,5 +265,7 @@ struct CreateFamily: View {
 }
 
 #Preview {
-    CreateFamily().environmentObject(AuthService())
+    let auth = AuthService()
+    CreateFamily(familyService: FamilyService(), authService: auth)
+        .environmentObject(auth)
 }

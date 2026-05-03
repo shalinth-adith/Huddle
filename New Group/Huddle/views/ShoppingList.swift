@@ -11,10 +11,13 @@ struct ShoppingList: View {
 
     let family: Family
 
-    init(family: Family) {
+    init(family: Family, messageService: MessageService) {
         self.family = family
         let familyId = family.id ?? ""
-        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(familyId: familyId))
+        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(
+            familyId: familyId,
+            messageService: messageService
+        ))
     }
 
     var body: some View {
@@ -332,12 +335,9 @@ struct ShoppingList: View {
 }
 
 #Preview {
-    ShoppingList(family: Family(
-        id: "preview",
-        name: "Test Family",
-        code: "H-123456",
-        createdAt: Date(),
-        members: []
-    ))
+    ShoppingList(
+        family: Family(id: "preview", name: "Test Family", code: "H-123456", createdAt: Date(), members: []),
+        messageService: MessageService()
+    )
     .environmentObject(AuthService())
 }

@@ -13,9 +13,9 @@ struct JoinFamily: View {
     @State private var showHelp = false
     @State private var shakeOffset: CGFloat = 0
 
-    init(authService: AuthService) {
+    init(familyService: FamilyService, authService: AuthService) {
         _viewModel = StateObject(wrappedValue: JoinFamilyViewModel(
-            familyService: FamilyService(),
+            familyService: familyService,
             authService: authService
         ))
     }
@@ -188,5 +188,5 @@ struct JoinFamily: View {
 }
 
 #Preview {
-    JoinFamily(authService: AuthService())
+    JoinFamily(familyService: FamilyService(), authService: AuthService())
 }

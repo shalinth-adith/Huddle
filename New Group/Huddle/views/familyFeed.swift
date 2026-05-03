@@ -55,11 +55,15 @@ struct FamilyFeedView: View {
         }
     }
 
-    init(authService: AuthService, openToShopping: Binding<Bool>) {
+    private let messageService: MessageService
+
+    init(familyService: FamilyService, messageService: MessageService,
+         authService: AuthService, openToShopping: Binding<Bool>) {
+        self.messageService = messageService
         _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
-            familyService: FamilyService(),
+            familyService: familyService,
             authService: authService,
-            messageService: MessageService()
+            messageService: messageService
         ))
         _openToShopping = openToShopping
     }
@@ -191,7 +195,10 @@ struct FamilyFeedView: View {
         }
         .sheet(isPresented: $viewModel.showShareSheet) { shareSheet }
         .sheet(isPresented: $viewModel.showShoppingList, onDismiss: { viewModel.loadShoppingItems() }) {
-            if let family = viewModel.family { ShoppingList(family: family).environmentObject(authService) }
+            if let family = viewModel.family {
+                ShoppingList(family: family, messageService: messageService)
+                    .environmentObject(authService)
+            }
         }
     }
 
@@ -1172,6 +1179,13 @@ private struct LiveTickerView: View {
 }
 
 #Preview {
-    FamilyFeedView(authService: AuthService(), openToShopping: .constant(false))
-        .environmentObject(AuthService())
+    let auth = AuthService()
+    let container = ServiceContainer()
+    FamilyFeedView(
+        familyService: container.familyService,
+        messageService: container.messageService,
+        authService: auth,
+        openToShopping: .constant(false)
+    )
+    .environmentObject(auth)
 }

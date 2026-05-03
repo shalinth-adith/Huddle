@@ -9,6 +9,7 @@ import SwiftUI
                                                                                                        
   struct RootView: View {
       @EnvironmentObject var authService: AuthService
+      @EnvironmentObject var serviceContainer: ServiceContainer
       @StateObject private var viewModel: RootViewModel
       @Binding var openToShopping: Bool
                                                                                                        
@@ -30,7 +31,12 @@ import SwiftUI
                   CreateJoinFamily()
                       .environmentObject(authService)
               } else {
-                  FamilyFeedView(authService: authService, openToShopping: $openToShopping)
+                  FamilyFeedView(
+                      familyService: serviceContainer.familyService,
+                      messageService: serviceContainer.messageService,
+                      authService: authService,
+                      openToShopping: $openToShopping
+                  )
               }
                                                                                                        
               if viewModel.showNameInput && !authService.isAuthenticated {
