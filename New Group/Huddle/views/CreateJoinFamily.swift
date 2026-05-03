@@ -26,11 +26,11 @@ struct CreateJoinFamily: View {
                         Button(action: { showSignOutAlert = true }) {
                             Text("Sign Out")
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                                .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                                 .padding(.horizontal, 14).padding(.vertical, 6)
-                                .background(Color(hex: "281A16").opacity(0.5))
+                                .background(Color.huddleGlassFill)
                                 .cornerRadius(20)
-                                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1))
                         }
                     }
                     .padding(.horizontal, 24).padding(.top, 60)
@@ -55,12 +55,12 @@ struct CreateJoinFamily: View {
                     let firstName = authService.currentUser?.displayName.components(separatedBy: " ").first ?? "there"
                     Text("Welcome, \(firstName)")
                         .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.huddleTextPrimary)
                         .tracking(-0.8)
                     Spacer().frame(height: 8)
                     Text("Let's gather your people.")
                         .font(.system(size: 15))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.62))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.62))
                     Spacer().frame(height: 34)
 
                     // Create family hero card
@@ -126,14 +126,14 @@ struct CreateJoinFamily: View {
                                 ClayIcon(systemImage: "key.fill", lushColor: .plum, size: 48)
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text("I have a code")
-                                        .font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                                        .font(.system(size: 17, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                                     Text("Join an existing family")
-                                        .font(.system(size: 13)).foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                                        .font(.system(size: 13)).foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                                    .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                             }
                         }
                     }
@@ -143,7 +143,7 @@ struct CreateJoinFamily: View {
                     Spacer().frame(height: 30)
                     Text("🔒  End-to-end encrypted · Private to your family")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.40))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.40))
                     Spacer().frame(height: 48)
                 }
             }

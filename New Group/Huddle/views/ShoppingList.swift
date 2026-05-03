@@ -19,7 +19,7 @@ struct ShoppingList: View {
 
     var body: some View {
         ZStack {
-            Color(hex: "0E0809").ignoresSafeArea()
+            Color.huddleBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 headerSection
@@ -28,9 +28,14 @@ struct ShoppingList: View {
                 }
                 addItemSection
                 if viewModel.isLoading {
-                    ProgressView()
-                        .tint(Color(hex: "FF8A66"))
-                        .padding(.top, 40)
+                    VStack(spacing: 10) {
+                        ProgressView()
+                            .tint(Color(hex: "FF8A66"))
+                        Text("Loading your list…")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
+                    }
+                    .padding(.top, 40)
                     Spacer()
                 } else {
                     shoppingListSection
@@ -38,6 +43,7 @@ struct ShoppingList: View {
             }
         }
         .buttonStyle(.plain)
+        .onTapGesture { isInputFocused = false }
         .onAppear { viewModel.loadItems() }
         .alert("Delete Item?", isPresented: Binding(
             get: { itemToDelete != nil },
@@ -62,29 +68,29 @@ struct ShoppingList: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Shopping List")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                     .tracking(-0.5)
                 if !viewModel.shoppingItems.isEmpty {
                     let done = viewModel.shoppingItems.filter { $0.isCompleted }.count
                     Text("\(viewModel.shoppingItems.count) items · \(done) done")
                         .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                 }
             }
             Spacer()
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.7))
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
-                    .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                    .background(Circle().fill(Color.huddleGlassFill))
+                    .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
         .padding(.bottom, 16)
-        .background(Color(hex: "0E0809"))
+        .background(Color.huddleBackground)
     }
 
     // MARK: - Progress bar
@@ -98,7 +104,7 @@ struct ShoppingList: View {
             HStack {
                 Text("Progress")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                     .tracking(0.5)
                 Spacer()
                 Text("\(Int(progress * 100))%")
@@ -108,7 +114,7 @@ struct ShoppingList: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: "281A16"))
+                        .fill(Color.huddleCard)
                         .frame(height: 6)
                     RoundedRectangle(cornerRadius: 4)
                         .fill(
@@ -134,11 +140,11 @@ struct ShoppingList: View {
             HStack(spacing: 8) {
                 Image(systemName: "cart.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(isInputFocused ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.35))
+                    .foregroundColor(isInputFocused ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.35))
 
                 TextField("Add an item...", text: $newItem)
                     .font(.system(size: 15))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                     .autocorrectionDisabled(true)
                     .focused($isInputFocused)
                     .onSubmit { addItem() }
@@ -147,11 +153,11 @@ struct ShoppingList: View {
             .padding(.vertical, 13)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(hex: "281A16").opacity(0.55))
+                    .fill(Color.huddleGlassFill)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
-                                isInputFocused ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.14),
+                                isInputFocused ? Color(hex: "FF8A66").opacity(0.5) : Color.huddleBorder,
                                 lineWidth: 1
                             )
                     )
@@ -162,13 +168,13 @@ struct ShoppingList: View {
                 let isEmpty = newItem.trimmingCharacters(in: .whitespaces).isEmpty
                 Image(systemName: "plus")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(isEmpty ? Color.huddleTextPrimary : .white)
                     .frame(width: 46, height: 46)
                     .background {
                         if isEmpty {
                             Circle()
-                                .fill(Color(hex: "281A16").opacity(0.55))
-                                .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                                .fill(Color.huddleGlassFill)
+                                .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                         } else {
                             Circle()
                                 .fill(LinearGradient(
@@ -193,20 +199,20 @@ struct ShoppingList: View {
                 VStack(spacing: 16) {
                     ZStack {
                         Circle()
-                            .fill(Color(hex: "281A16").opacity(0.55))
+                            .fill(Color.huddleGlassFill)
                             .frame(width: 88, height: 88)
-                            .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                            .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                         Image(systemName: "cart")
                             .font(.system(size: 36))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.25))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.25))
                     }
                     .padding(.top, 60)
                     Text("Your list is empty")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.huddleTextPrimary)
                     Text("Add items above to get started")
                         .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                 }
                 .frame(maxWidth: .infinity)
             } else {
@@ -226,9 +232,9 @@ struct ShoppingList: View {
                             Text("COMPLETED")
                                 .font(.system(size: 10, weight: .bold))
                                 .tracking(1.2)
-                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
+                                .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
                             Rectangle()
-                                .fill(Color(hex: "FFC8AA").opacity(0.12))
+                                .fill(Color.huddleBorder)
                                 .frame(height: 1)
                         }
                         .padding(.vertical, 12)
@@ -256,7 +262,7 @@ struct ShoppingList: View {
                         .fill(
                             item.isCompleted
                                 ? LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom)
-                                : LinearGradient(colors: [Color(hex: "281A16").opacity(0.6)], startPoint: .top, endPoint: .bottom)
+                                : LinearGradient(colors: [Color.huddleGlassFill], startPoint: .top, endPoint: .bottom)
                         )
                         .frame(width: 26, height: 26)
                         .overlay(
@@ -276,12 +282,12 @@ struct ShoppingList: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.content)
                     .font(.system(size: 15))
-                    .foregroundColor(item.isCompleted ? Color(hex: "F5E9E2").opacity(0.35) : .white)
-                    .strikethrough(item.isCompleted, color: Color(hex: "F5E9E2").opacity(0.3))
+                    .foregroundColor(item.isCompleted ? Color.huddleTextPrimary.opacity(0.35) : Color.huddleTextPrimary)
+                    .strikethrough(item.isCompleted, color: Color.huddleTextPrimary.opacity(0.3))
 
                 Text("Added by \(item.senderName)")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
             }
 
             Spacer()
@@ -292,9 +298,9 @@ struct ShoppingList: View {
             }) {
                 Image(systemName: "trash")
                     .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
                     .frame(width: 30, height: 30)
-                    .background(Color(hex: "281A16").opacity(0.5))
+                    .background(Color.huddleGlassFill)
                     .clipShape(Circle())
             }
         }
@@ -302,16 +308,16 @@ struct ShoppingList: View {
         .padding(.vertical, 13)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(Color(hex: "281A16").opacity(0.55))
+                .fill(Color.huddleGlassFill)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
                         .stroke(
-                            item.isCompleted ? Color(hex: "FFC8AA").opacity(0.06) : Color(hex: "FFC8AA").opacity(0.12),
+                            item.isCompleted ? Color(hex: "FFC8AA").opacity(0.06) : Color.huddleBorder,
                             lineWidth: 1
                         )
                 )
         )
-        .opacity(item.isCompleted ? 0.75 : 1.0)
+        .opacity(item.isCompleted ? 0.5 : 1.0)
     }
 
     // MARK: - Add Item Action

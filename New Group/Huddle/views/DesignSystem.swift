@@ -31,32 +31,36 @@ enum LushColor {
 struct AuroraBackground: View {
     var intensity: Double = 1.0
     @State private var phase = false
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var blobMult: Double { colorScheme == .light ? 0.20 : 1.0 }
 
     var body: some View {
         ZStack {
-            Color(hex: "0E0809")
+            Color.huddleBackground
             Circle()
                 .fill(Color(hex: "FF6A3D"))
-                .frame(width: 320, height: 320)
-                .blur(radius: 70)
-                .opacity(0.70 * intensity)
+                .frame(width: 300, height: 300)
+                .blur(radius: 48)
+                .opacity(0.65 * intensity * blobMult)
                 .offset(x: phase ? -40 : -90, y: phase ? -60 : -120)
                 .animation(.easeInOut(duration: 14).repeatForever(autoreverses: true), value: phase)
             Circle()
                 .fill(Color(hex: "E85A7A"))
-                .frame(width: 280, height: 280)
-                .blur(radius: 65)
-                .opacity(0.55 * intensity)
+                .frame(width: 260, height: 260)
+                .blur(radius: 44)
+                .opacity(0.50 * intensity * blobMult)
                 .offset(x: phase ? 150 : 110, y: phase ? -10 : -55)
                 .animation(.easeInOut(duration: 18).repeatForever(autoreverses: true), value: phase)
             Circle()
                 .fill(Color(hex: "F5A742"))
-                .frame(width: 360, height: 360)
-                .blur(radius: 80)
-                .opacity(0.40 * intensity)
+                .frame(width: 340, height: 340)
+                .blur(radius: 55)
+                .opacity(0.35 * intensity * blobMult)
                 .offset(x: phase ? 20 : -30, y: phase ? 320 : 270)
                 .animation(.easeInOut(duration: 22).repeatForever(autoreverses: true), value: phase)
         }
+        .drawingGroup()
         .ignoresSafeArea()
         .onAppear { phase = true }
     }
@@ -70,6 +74,8 @@ struct GlassCard<Content: View>: View {
     var radius: CGFloat = 24
     let content: Content
 
+    @Environment(\.colorScheme) private var colorScheme
+
     init(padding: CGFloat = 18, isHero: Bool = false, radius: CGFloat = 24, @ViewBuilder content: () -> Content) {
         self.padding = padding
         self.isHero = isHero
@@ -82,10 +88,15 @@ struct GlassCard<Content: View>: View {
             .padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: radius)
-                    .fill(Color(hex: "281A16").opacity(isHero ? 0.62 : 0.55))
-                    .overlay(RoundedRectangle(cornerRadius: radius).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                    .fill(Color.huddleGlassFill)
+                    .overlay(RoundedRectangle(cornerRadius: radius).stroke(Color.huddleBorder, lineWidth: 1))
             )
-            .shadow(color: .black.opacity(isHero ? 0.55 : 0.40), radius: isHero ? 28 : 14, x: 0, y: isHero ? 18 : 10)
+            .shadow(
+                color: colorScheme == .light ? .black.opacity(0.08) : .black.opacity(isHero ? 0.55 : 0.40),
+                radius: colorScheme == .light ? 8 : (isHero ? 28 : 14),
+                x: 0,
+                y: colorScheme == .light ? 4 : (isHero ? 18 : 10)
+            )
     }
 }
 
@@ -126,12 +137,12 @@ struct LushAvatar: View {
     var glow: Bool = false
     var photoBase64: String? = nil
 
+    @State private var cachedImage: UIImage? = nil
+
     var body: some View {
         ZStack {
-            if let base64 = photoBase64, !base64.isEmpty,
-               let data = Data(base64Encoded: base64),
-               let uiImage = UIImage(data: data) {
-                Image(uiImage: uiImage)
+            if let img = cachedImage {
+                Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
                     .frame(width: size, height: size)
@@ -152,6 +163,14 @@ struct LushAvatar: View {
             }
         }
         .frame(width: size, height: size)
+        .task(id: photoBase64) {
+            guard let base64 = photoBase64, !base64.isEmpty else { cachedImage = nil; return }
+            let decoded = await Task.detached(priority: .utility) {
+                guard let data = Data(base64Encoded: base64) else { return nil as UIImage? }
+                return UIImage(data: data)
+            }.value
+            await MainActor.run { cachedImage = decoded }
+        }
     }
 }
 
@@ -209,6 +228,8 @@ struct EmberButton: View {
     var isDisabled: Bool = false
     var action: () -> Void
 
+    @GestureState private var isPressed = false
+
     var body: some View {
         Button(action: { if !isDisabled && !isLoading { action() } }) {
             HStack(spacing: 8) {
@@ -216,7 +237,9 @@ struct EmberButton: View {
                     Image(systemName: img).font(.system(size: 18, weight: .semibold))
                 }
                 if isLoading {
-                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .transition(.opacity)
                 } else {
                     Text(label).font(.system(size: 16, weight: .semibold)).tracking(-0.1)
                 }
@@ -242,8 +265,11 @@ struct EmberButton: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 18))
             )
+            .scaleEffect(isPressed && !isDisabled ? 0.97 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isPressed)
         }
         .disabled(isDisabled || isLoading)
+        .simultaneousGesture(DragGesture(minimumDistance: 0).updating($isPressed) { _, state, _ in state = true })
         .shadow(color: isDisabled ? .clear : Color(hex: "D8512B").opacity(0.45), radius: 14, x: 0, y: 6)
     }
 }
@@ -283,17 +309,22 @@ struct GlassCircleButton: View {
     var size: CGFloat = 38
     var action: () -> Void
 
+    @GestureState private var isPressed = false
+
     var body: some View {
         Button(action: action) {
             Image(systemName: systemImage)
                 .font(.system(size: size * 0.42, weight: .medium))
-                .foregroundColor(Color(hex: "F5E9E2").opacity(0.9))
+                .foregroundColor(Color.huddleTextPrimary.opacity(0.9))
                 .frame(width: size, height: size)
                 .background(
                     Circle()
-                        .fill(Color(hex: "281A16").opacity(0.6))
-                        .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.16), lineWidth: 1))
+                        .fill(Color.huddleGlassFill)
+                        .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                 )
+                .scaleEffect(isPressed ? 0.88 : 1.0)
+                .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isPressed)
         }
+        .simultaneousGesture(DragGesture(minimumDistance: 0).updating($isPressed) { _, state, _ in state = true })
     }
 }

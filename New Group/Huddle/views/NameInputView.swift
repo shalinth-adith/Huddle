@@ -13,6 +13,7 @@ struct NameInputView: View {
     @State private var profileImage: UIImage? = nil
     @State private var selectedColorIndex: Int = 0
     @State private var avatarFloat: CGFloat = 0
+    @FocusState private var isNameFocused: Bool
 
     let onSubmit: (String, UIImage?) -> Void
     var onBack: (() -> Void)? = nil
@@ -23,6 +24,7 @@ struct NameInputView: View {
     var body: some View {
         ZStack {
             AuroraBackground(intensity: 0.6)
+                .onTapGesture { isNameFocused = false }
 
             VStack(spacing: 0) {
                 // Header
@@ -30,10 +32,10 @@ struct NameInputView: View {
                     Button(action: { onBack?() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.8))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.8))
                             .frame(width: 34, height: 34)
-                            .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
-                            .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                            .background(Circle().fill(Color.huddleGlassFill))
+                            .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                     }
                     .opacity(isLoading ? 0.4 : 1)
                     .disabled(isLoading)
@@ -42,7 +44,7 @@ struct NameInputView: View {
 
                     Text("Step 1 of 3")
                         .font(.system(size: 12))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 60)
@@ -55,11 +57,11 @@ struct NameInputView: View {
                             LushEyebrow(text: "Hello there")
                             Text("What should\nwe call you?")
                                 .font(.system(size: 34, weight: .bold))
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.huddleTextPrimary)
                                 .tracking(-1.0)
                             Text("This is how your family will see you.")
                                 .font(.system(size: 14))
-                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                                .foregroundColor(Color.huddleTextPrimary.opacity(0.6))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 24)
@@ -130,13 +132,15 @@ struct NameInputView: View {
 
                             TextField("Your name…", text: $name)
                                 .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(.white)
+                                .foregroundColor(Color.huddleTextPrimary)
                                 .autocorrectionDisabled(true)
+                                .focused($isNameFocused)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 14)
 
                             Button(action: {
                                 guard !trimmedName.isEmpty else { return }
+                                isNameFocused = false
                                 isLoading = true
                                 onSubmit(trimmedName, profileImage)
                             }) {
@@ -150,13 +154,13 @@ struct NameInputView: View {
                                             .font(.system(size: 11, weight: .semibold))
                                     }
                                 }
-                                .foregroundColor(.white)
+                                .foregroundColor(trimmedName.isEmpty ? Color.huddleTextPrimary : .white)
                                 .padding(.horizontal, 16)
                                 .frame(height: 48)
                                 .background {
                                     if trimmedName.isEmpty {
                                         RoundedRectangle(cornerRadius: 14)
-                                            .fill(Color(hex: "F5E9E2").opacity(0.1))
+                                            .fill(Color.huddleTextPrimary.opacity(0.1))
                                     } else {
                                         RoundedRectangle(cornerRadius: 14)
                                             .fill(LinearGradient(
@@ -171,15 +175,15 @@ struct NameInputView: View {
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 18)
-                                .fill(Color(hex: "281A16").opacity(0.55))
-                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(hex: "FFC8AA").opacity(0.16), lineWidth: 1))
+                                .fill(Color.huddleGlassFill)
+                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.huddleOutlineVariant, lineWidth: 1))
                         )
                         .shadow(color: .black.opacity(0.4), radius: 12, x: 0, y: 6)
                         .padding(.horizontal, 24)
 
                         Text("Tip — short names work best.")
                             .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                             .padding(.top, 10)
                             .padding(.horizontal, 24)
                             .frame(maxWidth: .infinity, alignment: .leading)

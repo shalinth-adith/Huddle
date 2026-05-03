@@ -15,7 +15,7 @@ struct ExpandedChat: View {
 
     var body: some View {
         ZStack {
-            Color(hex: "0E0809").ignoresSafeArea()
+            Color.huddleBackground.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
@@ -49,7 +49,7 @@ struct ExpandedChat: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(viewModel.family?.name ?? "Chat")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                     .tracking(-0.3)
                 HStack(spacing: 5) {
                     Image(systemName: "lock.fill")
@@ -57,26 +57,26 @@ struct ExpandedChat: View {
                         .foregroundColor(Color(hex: "FF8A66").opacity(0.7))
                     Text("\(viewModel.family?.members.count ?? 0) members · end-to-end encrypted")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                 }
             }
             Spacer()
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.7))
                     .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
-                    .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                    .background(Circle().fill(Color.huddleGlassFill))
+                    .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
             }
         }
         .padding(.horizontal, 20)
         .padding(.top, 16)
         .padding(.bottom, 14)
-        .background(Color(hex: "0E0809"))
+        .background(Color.huddleBackground)
         .overlay(
             Rectangle()
-                .fill(Color(hex: "FFC8AA").opacity(0.08))
+                .fill(Color.huddleBorder)
                 .frame(height: 1),
             alignment: .bottom
         )
@@ -139,19 +139,19 @@ struct ExpandedChat: View {
         else if Calendar.current.isDateInYesterday(date) { label = "Yesterday" }
         else { let f = DateFormatter(); f.dateStyle = .medium; f.timeStyle = .none; label = f.string(from: date) }
         return HStack(spacing: 10) {
-            Rectangle().fill(Color(hex: "FFC8AA").opacity(0.1)).frame(height: 1)
+            Rectangle().fill(Color.huddleBorder).frame(height: 1)
             Text(label)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
+                .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
                 .fixedSize()
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
                 .background(
                     Capsule()
-                        .fill(Color(hex: "281A16").opacity(0.55))
-                        .overlay(Capsule().stroke(Color(hex: "FFC8AA").opacity(0.1), lineWidth: 1))
+                        .fill(Color.huddleGlassFill)
+                        .overlay(Capsule().stroke(Color.huddleBorder, lineWidth: 1))
                 )
-            Rectangle().fill(Color(hex: "FFC8AA").opacity(0.1)).frame(height: 1)
+            Rectangle().fill(Color.huddleBorder).frame(height: 1)
         }
     }
 
@@ -160,7 +160,7 @@ struct ExpandedChat: View {
     private func systemRow(_ message: HuddleMessage) -> some View {
         Text(message.content)
             .font(.system(size: 12))
-            .foregroundColor(Color(hex: "F5E9E2").opacity(0.35))
+            .foregroundColor(Color.huddleTextPrimary.opacity(0.35))
             .frame(maxWidth: .infinity)
             .multilineTextAlignment(.center)
     }
@@ -172,10 +172,10 @@ struct ExpandedChat: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label.isEmpty ? "Ping" : label)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                 Text("\(message.senderName) · \(formatTime(message.createdAt))")
                     .font(.caption)
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
             }
             Spacer()
         }
@@ -203,13 +203,13 @@ struct ExpandedChat: View {
                 if !isMe && firstInGroup {
                     Text(message.senderName)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                         .padding(.leading, 4)
                 }
 
                 Text(message.content)
                     .font(.system(size: 15))
-                    .foregroundColor(isMe ? .white : Color(hex: "F5E9E2"))
+                    .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(
@@ -224,10 +224,10 @@ struct ExpandedChat: View {
                                     )
                             } else {
                                 RoundedRectangle(cornerRadius: 18)
-                                    .fill(Color(hex: "281A16").opacity(0.65))
+                                    .fill(Color.huddleGlassFill)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 18)
-                                            .stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                            .stroke(Color.huddleBorder, lineWidth: 1)
                                     )
                             }
                         }
@@ -247,7 +247,7 @@ struct ExpandedChat: View {
 
                 Text(formatTime(message.createdAt))
                     .font(.system(size: 10))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
             }
 
             if !isMe { Spacer(minLength: 60) }
@@ -270,16 +270,16 @@ struct ExpandedChat: View {
                         if users.count > 1 {
                             Text("\(users.count)")
                                 .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(isMine ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.4))
+                                .foregroundColor(isMine ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.4))
                         }
                     }
                     .padding(.horizontal, 8).padding(.vertical, 4)
                     .background(
                         Capsule()
-                            .fill(isMine ? Color(hex: "FF8A66").opacity(0.12) : Color(hex: "281A16").opacity(0.55))
+                            .fill(isMine ? Color(hex: "FF8A66").opacity(0.12) : Color.huddleGlassFill)
                             .overlay(
                                 Capsule().stroke(
-                                    isMine ? Color(hex: "FF8A66").opacity(0.35) : Color(hex: "FFC8AA").opacity(0.1),
+                                    isMine ? Color(hex: "FF8A66").opacity(0.35) : Color.huddleBorder,
                                     lineWidth: 1
                                 )
                             )
@@ -308,8 +308,8 @@ struct ExpandedChat: View {
                             .frame(width: 48, height: 48)
                             .background(
                                 Circle()
-                                    .fill(Color(hex: "281A16").opacity(0.8))
-                                    .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                                    .fill(Color.huddleCard.opacity(0.9))
+                                    .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                             )
                     }
                 }
@@ -318,8 +318,8 @@ struct ExpandedChat: View {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 28)
-                    .fill(Color(hex: "1A1210").opacity(0.95))
-                    .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color(hex: "FFC8AA").opacity(0.1), lineWidth: 1))
+                    .fill(Color.huddleCard)
+                    .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.huddleBorder, lineWidth: 1))
                     .shadow(color: Color.black.opacity(0.4), radius: 20, x: 0, y: -4)
             )
             .padding(.horizontal, 20)
@@ -348,14 +348,14 @@ struct ExpandedChat: View {
             HStack(spacing: 8) {
                 TextField("Message your family...", text: $messageText)
                     .font(.system(size: 15))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                     .focused($isInputFocused)
                     .onSubmit { sendMessage() }
                 if !messageText.isEmpty {
                     Button(action: { messageText = "" }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.3))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
                     }
                 }
             }
@@ -363,10 +363,10 @@ struct ExpandedChat: View {
             .padding(.vertical, 11)
             .background(
                 Capsule()
-                    .fill(Color(hex: "281A16").opacity(0.55))
+                    .fill(Color.huddleGlassFill)
                     .overlay(
                         Capsule().stroke(
-                            isInputFocused ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.14),
+                            isInputFocused ? Color(hex: "FF8A66").opacity(0.5) : Color.huddleBorder,
                             lineWidth: 1
                         )
                     )
@@ -375,11 +375,11 @@ struct ExpandedChat: View {
             Button(action: sendMessage) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(messageText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.huddleTextPrimary : .white)
                     .frame(width: 42, height: 42)
                     .background(
                         messageText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? AnyView(Circle().fill(Color(hex: "281A16").opacity(0.55)))
+                            ? AnyView(Circle().fill(Color.huddleGlassFill))
                             : AnyView(
                                 Circle().fill(
                                     LinearGradient(
@@ -396,10 +396,10 @@ struct ExpandedChat: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(
-            Color(hex: "0E0809")
+            Color.huddleBackground
                 .overlay(
                     Rectangle()
-                        .fill(Color(hex: "FFC8AA").opacity(0.08))
+                        .fill(Color.huddleBorder)
                         .frame(height: 1),
                     alignment: .top
                 )
@@ -410,18 +410,18 @@ struct ExpandedChat: View {
 
     private var pingTrayView: some View {
         ZStack {
-            Color(hex: "0E0809").ignoresSafeArea()
+            Color.huddleBackground.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Send a ping")
                             .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.huddleTextPrimary)
                             .tracking(-0.4)
                         Text("Quick status update for your family")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                     }
                     Spacer()
                 }
@@ -438,17 +438,17 @@ struct ExpandedChat: View {
                                 Text("📍").font(.system(size: 18))
                                 Text(label)
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color.huddleTextPrimary)
                                 Spacer()
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 13)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(hex: "281A16").opacity(0.55))
+                                    .fill(Color.huddleGlassFill)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 16)
-                                            .stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                            .stroke(Color.huddleBorder, lineWidth: 1)
                                     )
                             )
                         }

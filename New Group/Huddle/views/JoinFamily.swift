@@ -10,6 +10,8 @@ struct JoinFamily: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var viewModel: JoinFamilyViewModel
     @FocusState private var isCodeFocused: Bool
+    @State private var showHelp = false
+    @State private var shakeOffset: CGFloat = 0
 
     init(authService: AuthService) {
         _viewModel = StateObject(wrappedValue: JoinFamilyViewModel(
@@ -31,6 +33,17 @@ struct JoinFamily: View {
         .buttonStyle(.plain)
         .ignoresSafeArea()
         .onTapGesture { isCodeFocused = false }
+        .onChange(of: viewModel.errorMessage) { error in
+            guard error != nil else { return }
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            withAnimation(.easeInOut(duration: 0.07).repeatCount(4, autoreverses: true)) { shakeOffset = 9 }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { shakeOffset = 0 }
+        }
+        .alert("How to join", isPresented: $showHelp) {
+            Button("Got it", role: .cancel) {}
+        } message: {
+            Text("Ask the family admin for the 7-character code that looks like H-216962. Enter just the 6 numbers after the H- prefix.")
+        }
     }
 
     // MARK: - Input
@@ -42,13 +55,13 @@ struct JoinFamily: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.7))
                         .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
-                        .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                        .background(Circle().fill(Color.huddleGlassFill))
+                        .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                 }
                 Spacer()
-                Button(action: {}) {
+                Button(action: { showHelp = true }) {
                     Text("Help")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Color(hex: "FF8A66"))
@@ -62,11 +75,11 @@ struct JoinFamily: View {
                     Spacer().frame(height: 8)
                     Text("Enter your\ninvite code.")
                         .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(.white).tracking(-0.8)
+                        .foregroundColor(Color.huddleTextPrimary).tracking(-0.8)
                     Spacer().frame(height: 8)
                     Text("Six characters from a family member.")
                         .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.6))
 
                     Spacer().frame(height: 32)
 
@@ -87,19 +100,20 @@ struct JoinFamily: View {
                         .font(.system(size: 22, weight: .semibold)).tracking(4)
                         .keyboardType(.numberPad)
                         .focused($isCodeFocused)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color.huddleTextPrimary)
                         Spacer(minLength: 0)
                     }
                     .padding(.vertical, 16)
                     .background(
                         RoundedRectangle(cornerRadius: 18)
-                            .fill(Color(hex: "281A16").opacity(0.55))
+                            .fill(Color.huddleGlassFill)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 18)
-                                    .stroke(viewModel.familyCode == "H-" ? Color(hex: "FFC8AA").opacity(0.14) : Color(hex: "FF8A66").opacity(0.5), lineWidth: 1)
+                                    .stroke(viewModel.familyCode == "H-" ? Color.huddleBorder : Color(hex: "FF8A66").opacity(0.5), lineWidth: 1)
                             )
                     )
                     .shadow(color: viewModel.familyCode != "H-" ? Color(hex: "FF8A66").opacity(0.2) : .clear, radius: 10, x: 0, y: 0)
+                    .offset(x: shakeOffset)
 
                     if let error = viewModel.errorMessage {
                         Text(error)
@@ -115,7 +129,7 @@ struct JoinFamily: View {
                             .font(.system(size: 16)).foregroundColor(Color(hex: "FF8A66"))
                         Text("Ask the family admin for the 7-character code that looks like H-216962.")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.65)).lineSpacing(2)
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.65)).lineSpacing(2)
                     }
                     .padding(14)
                     .background(Color(hex: "FF8A66").opacity(0.08))
@@ -138,7 +152,7 @@ struct JoinFamily: View {
                 .padding(.horizontal, 24)
                 .padding(.bottom, 38)
                 .background(
-                    LinearGradient(colors: [.clear, Color(hex: "0E0809").opacity(0.9), Color(hex: "0E0809")], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [.clear, Color.huddleBackground.opacity(0.9), Color.huddleBackground], startPoint: .top, endPoint: .bottom)
                         .ignoresSafeArea()
                 )
             }
@@ -158,11 +172,11 @@ struct JoinFamily: View {
             }
             VStack(spacing: 10) {
                 Text("Joined Successfully!")
-                    .font(.system(size: 26, weight: .bold)).foregroundColor(.white).tracking(-0.5)
+                    .font(.system(size: 26, weight: .bold)).foregroundColor(Color.huddleTextPrimary).tracking(-0.5)
                 Text(viewModel.joinedFamilyName)
                     .font(.system(size: 20, weight: .semibold)).foregroundColor(Color(hex: "FF8A66"))
                 Text("You're now part of the \(viewModel.joinedFamilyName) family. Say hello!")
-                    .font(.system(size: 15)).foregroundColor(Color(hex: "F5E9E2").opacity(0.65))
+                    .font(.system(size: 15)).foregroundColor(Color.huddleTextPrimary.opacity(0.65))
                     .multilineTextAlignment(.center).lineSpacing(3).padding(.horizontal, 16)
             }
             Spacer()

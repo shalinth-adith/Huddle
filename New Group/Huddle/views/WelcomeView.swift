@@ -25,8 +25,8 @@ struct WelcomeView: View {
                     HStack(spacing: 8) {
                         LushAvatar(letter: "M", lushColor: .rose, size: 28)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Maya").font(.system(size: 10, weight: .semibold)).foregroundColor(.white)
-                            Text("just home ✨").font(.system(size: 9)).foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                            Text("Maya").font(.system(size: 10, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                            Text("just home ✨").font(.system(size: 9)).foregroundColor(Color.huddleTextPrimary.opacity(0.6))
                         }
                     }
                 }
@@ -39,8 +39,8 @@ struct WelcomeView: View {
                     HStack(spacing: 8) {
                         ClayIcon(systemImage: "waveform.path.ecg", lushColor: .amber, size: 28)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Heartbeats").font(.system(size: 10, weight: .semibold)).foregroundColor(.white)
-                            Text("4 family").font(.system(size: 9)).foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                            Text("Heartbeats").font(.system(size: 10, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                            Text("4 family").font(.system(size: 9)).foregroundColor(Color.huddleTextPrimary.opacity(0.6))
                         }
                     }
                 }
@@ -80,20 +80,20 @@ struct WelcomeView: View {
                         Spacer().frame(height: 10)
                         Text("Stay close,\neven when apart.")
                             .font(.system(size: 38, weight: .bold))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.huddleTextPrimary)
                             .tracking(-1.2)
                             .lineSpacing(2)
                         Spacer().frame(height: 12)
-                        Text("Live presence, plans and tiny moments — all in one warm, private place.")
+                        Text("Live presence, plans and tiny moments , all in one warm, private place.")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.65))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.65))
                             .lineSpacing(3)
                         Spacer().frame(height: 26)
                         EmberButton(label: "Sign In", action: onGetStarted)
                         Spacer().frame(height: 20)
                         Text("By continuing you agree to our Terms & Privacy Policy")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                     }
@@ -102,7 +102,7 @@ struct WelcomeView: View {
                     .padding(.bottom, 48)
                     .background(
                         LinearGradient(
-                            colors: [.clear, Color(hex: "0E0809").opacity(0.85), Color(hex: "0E0809")],
+                            colors: [.clear, Color.huddleBackground, Color.huddleBackground],
                             startPoint: .top, endPoint: .bottom
                         )
                         .ignoresSafeArea()
@@ -116,11 +116,13 @@ struct WelcomeView: View {
                         Button(action: { colorSchemePreference = colorSchemePreference == 2 ? 1 : 2 }) {
                             Image(systemName: colorSchemePreference == 2 ? "sun.max.fill" : "moon.fill")
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                                .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
+                                .rotationEffect(.degrees(colorSchemePreference == 2 ? 180 : 0))
+                                .animation(.spring(response: 0.4, dampingFraction: 0.6), value: colorSchemePreference)
                                 .padding(8)
-                                .background(Color(hex: "281A16").opacity(0.6))
+                                .background(Color.huddleGlassFill)
                                 .clipShape(Circle())
-                                .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                                .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                         }
                         .padding(.trailing, 20)
                     }

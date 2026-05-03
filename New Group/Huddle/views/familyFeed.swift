@@ -21,7 +21,6 @@ struct FamilyFeedView: View {
 
     // Lush animation states
     @State private var floatPhase = false
-    @State private var tickerIndex = 0
 
     private let pingOptions: [String] = [
         "I'm home", "On my way", "Leaving school", "Running late", "At the store", "Be there soon"
@@ -103,7 +102,7 @@ struct FamilyFeedView: View {
                 }
             } else {
                 Text("Error loading family")
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
             }
         }
         .ignoresSafeArea()
@@ -127,9 +126,6 @@ struct FamilyFeedView: View {
             if tab == .messages { viewModel.markMessagesAsRead() }
         }
         .onDisappear { viewModel.cleanup() }
-        .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
-            withAnimation(.easeInOut(duration: 0.35)) { tickerIndex = (tickerIndex + 1) % 3 }
-        }
         .alert("Leave Huddle?", isPresented: $showLeaveAlert) {
             Button("Leave", role: .destructive) { viewModel.leaveGroup() }
             Button("Cancel", role: .cancel) {}
@@ -158,7 +154,7 @@ struct FamilyFeedView: View {
         .sheet(isPresented: $showGroupSwitcher) {
             NavigationView {
                 ZStack {
-                    Color(hex: "0E0809").ignoresSafeArea()
+                    Color.huddleBackground.ignoresSafeArea()
                     List {
                         ForEach(viewModel.availableFamilies) { fam in
                             Button {
@@ -166,9 +162,9 @@ struct FamilyFeedView: View {
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(fam.name).font(.system(size: 16, weight: .medium)).foregroundColor(Color(hex: "F5E9E2"))
+                                        Text(fam.name).font(.system(size: 16, weight: .medium)).foregroundColor(Color.huddleTextPrimary)
                                         Text("\(fam.members.count) member\(fam.members.count == 1 ? "" : "s")")
-                                            .font(.system(size: 13)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                                            .font(.system(size: 13)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                                     }
                                     Spacer()
                                     if fam.id == authService.currentUser?.currentFamilyId {
@@ -176,7 +172,7 @@ struct FamilyFeedView: View {
                                     }
                                 }
                             }
-                            .listRowBackground(Color(hex: "1F1614"))
+                            .listRowBackground(Color.huddleSurface)
                         }
                     }
                     .scrollContentBackground(.hidden)
@@ -205,6 +201,7 @@ struct FamilyFeedView: View {
         HStack(spacing: 0) {
             ForEach(FeedTab.allCases, id: \.self) { tab in
                 Button(action: {
+                    if selectedTab != tab { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
                     withAnimation(.easeInOut(duration: 0.18)) { selectedTab = tab }
                     if tab == .messages { viewModel.markMessagesAsRead() }
                 }) {
@@ -212,16 +209,17 @@ struct FamilyFeedView: View {
                         ZStack(alignment: .topTrailing) {
                             Image(systemName: selectedTab == tab ? tab.activeIcon : tab.icon)
                                 .font(.system(size: 21))
-                                .foregroundColor(selectedTab == tab ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.50))
+                                .foregroundColor(selectedTab == tab ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.50))
                             if tab == .messages && viewModel.unreadCount > 0 && selectedTab != .messages {
                                 Circle().fill(Color(hex: "FF8A66")).frame(width: 8, height: 8)
                                     .shadow(color: Color(hex: "FF8A66").opacity(0.8), radius: 4)
                                     .offset(x: 4, y: -2)
+                                    .transition(.scale.combined(with: .opacity))
                             }
                         }
                         Text(tab.label)
                             .font(.system(size: 10, weight: selectedTab == tab ? .semibold : .regular))
-                            .foregroundColor(selectedTab == tab ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.50))
+                            .foregroundColor(selectedTab == tab ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.50))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
@@ -239,8 +237,8 @@ struct FamilyFeedView: View {
         .padding(.top, 6)
         .background(
             RoundedRectangle(cornerRadius: 28)
-                .fill(Color(hex: "281A16").opacity(0.65))
-                .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color(hex: "FFC8AA").opacity(0.16), lineWidth: 1))
+                .fill(Color.huddleGlassFill)
+                .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.huddleOutlineVariant, lineWidth: 1))
                 .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 0)
                 .overlay(
                     VStack {
@@ -254,7 +252,7 @@ struct FamilyFeedView: View {
         .padding(.horizontal, 14)
         .padding(.bottom, 30)
         .background(
-            LinearGradient(colors: [.clear, Color(hex: "0E0809").opacity(0.9), Color(hex: "0E0809")], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.clear, Color.huddleBackground.opacity(0.9), Color.huddleBackground], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .bottom)
         )
     }
@@ -303,7 +301,7 @@ struct FamilyFeedView: View {
         .padding(.vertical, 14)
         .padding(.top, 44)
         .background(
-            LinearGradient(colors: [Color(hex: "0E0809"), Color(hex: "0E0809").opacity(0)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color.huddleBackground, Color.huddleBackground.opacity(0)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea(edges: .top)
         )
     }
@@ -413,24 +411,7 @@ struct FamilyFeedView: View {
                 }
 
                 // Live ticker
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.30))
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.14), lineWidth: 1))
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(Color(hex: "7CFFA8"))
-                            .frame(width: 6, height: 6)
-                            .shadow(color: Color(hex: "7CFFA8"), radius: 4)
-                        let item = Array(tickerItems)[tickerIndex % tickerItems.count]
-                        Text(item.0).font(.system(size: 12, weight: .bold)).foregroundColor(.white)
-                        Text(item.1).font(.system(size: 12)).foregroundColor(.white.opacity(0.8))
-                        Spacer()
-                        Text("live").font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.5))
-                    }
-                    .padding(.horizontal, 12)
-                }
-                .frame(height: 36)
+                LiveTickerView(items: tickerItems)
             }
             .padding(20)
         }
@@ -462,7 +443,7 @@ struct FamilyFeedView: View {
                             MemberAvatarView(name: member.displayName, photoBase64: photo, size: 48)
                             Text(member.displayName.components(separatedBy: " ").first ?? member.displayName)
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(hex: "F5E9E2").opacity(0.72))
+                                .foregroundColor(Color.huddleTextPrimary.opacity(0.72))
                         }
                     }
                 }
@@ -471,8 +452,8 @@ struct FamilyFeedView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(hex: "281A16").opacity(0.55))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                .fill(Color.huddleGlassFill)
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
     }
@@ -491,7 +472,7 @@ struct FamilyFeedView: View {
                 HStack(spacing: 8) {
                     ClayIcon(systemImage: "cart.fill", lushColor: .amber, size: 32)
                     Text("Shopping List")
-                        .font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                        .font(.system(size: 15, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                 }
                 Spacer()
                 Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .shopping } }) {
@@ -516,13 +497,13 @@ struct FamilyFeedView: View {
                             .rotationEffect(.degrees(-90))
                             .frame(width: 46, height: 46)
                         Text("\(Int(progress * 100))%")
-                            .font(.system(size: 11, weight: .bold)).foregroundColor(.white)
+                            .font(.system(size: 11, weight: .bold)).foregroundColor(Color.huddleTextPrimary)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(items.count - done) items to grab")
-                            .font(.system(size: 13, weight: .semibold)).foregroundColor(.white)
+                            .font(.system(size: 13, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                         Text("\(done) of \(items.count) done")
-                            .font(.system(size: 11)).foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                            .font(.system(size: 11)).foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                     }
                     Spacer()
                 }
@@ -530,8 +511,8 @@ struct FamilyFeedView: View {
 
             if items.isEmpty {
                 HStack(spacing: 8) {
-                    Image(systemName: "cart").font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
-                    Text("No items yet").font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                    Image(systemName: "cart").font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.4))
+                    Text("No items yet").font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                 }
             } else {
                 VStack(spacing: 8) {
@@ -540,17 +521,17 @@ struct FamilyFeedView: View {
                             Button(action: { viewModel.toggleShoppingItem(item) }) {
                                 Image(systemName: item.isCompleted ? "checkmark.circle.fill" : "circle")
                                     .font(.system(size: 20))
-                                    .foregroundColor(item.isCompleted ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.35))
+                                    .foregroundColor(item.isCompleted ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.35))
                             }
                             Text(item.content)
-                                .font(.system(size: 14)).foregroundColor(item.isCompleted ? Color(hex: "F5E9E2").opacity(0.45) : .white)
-                                .strikethrough(item.isCompleted, color: Color(hex: "F5E9E2").opacity(0.45))
+                                .font(.system(size: 14)).foregroundColor(item.isCompleted ? Color.huddleTextPrimary.opacity(0.45) : .white)
+                                .strikethrough(item.isCompleted, color: Color.huddleTextPrimary.opacity(0.45))
                             Spacer()
                         }
                     }
                     if remaining > 0 {
                         Text("+\(remaining) more items")
-                            .font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                            .font(.system(size: 12)).foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                     }
                 }
             }
@@ -558,8 +539,8 @@ struct FamilyFeedView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(hex: "281A16").opacity(0.55))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                .fill(Color.huddleGlassFill)
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
     }
@@ -570,12 +551,12 @@ struct FamilyFeedView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 ClayIcon(systemImage: "pin.fill", lushColor: .amber, size: 28)
-                Text("Pinned").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                Text("Pinned").font(.system(size: 15, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                 Spacer()
             }
             ForEach(viewModel.pinnedMessages) { message in
                 HStack {
-                    Text(message.content).font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.9))
+                    Text(message.content).font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.9))
                     Spacer()
                 }
                 .padding(12)
@@ -593,8 +574,8 @@ struct FamilyFeedView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(hex: "281A16").opacity(0.55))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                .fill(Color.huddleGlassFill)
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
     }
@@ -606,7 +587,7 @@ struct FamilyFeedView: View {
             HStack {
                 HStack(spacing: 8) {
                     ClayIcon(systemImage: "message.fill", lushColor: .rose, size: 28)
-                    Text("Huddle Chat").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                    Text("Huddle Chat").font(.system(size: 15, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                 }
                 Spacer()
                 Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .messages } }) {
@@ -615,7 +596,7 @@ struct FamilyFeedView: View {
             }
             if viewModel.messages.isEmpty {
                 Text("No messages yet. Start chatting!")
-                    .font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.45)).padding(.vertical, 4)
+                    .font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.45)).padding(.vertical, 4)
             } else {
                 VStack(spacing: 8) {
                     ForEach(Array(viewModel.messages.filter { $0.type != .system }.suffix(3))) { msg in
@@ -627,8 +608,8 @@ struct FamilyFeedView: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color(hex: "281A16").opacity(0.55))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                .fill(Color.huddleGlassFill)
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1))
         )
         .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
     }
@@ -641,22 +622,21 @@ struct FamilyFeedView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     LushEyebrow(text: "Family chat")
                     Text(viewModel.family?.name ?? "Chat")
-                        .font(.system(size: 20, weight: .bold)).foregroundColor(.white).tracking(-0.5)
+                        .font(.system(size: 20, weight: .bold)).foregroundColor(Color.huddleTextPrimary).tracking(-0.5)
                 }
                 Spacer()
-                GlassCircleButton(systemImage: "arrow.up.left.and.arrow.down.right", action: { showExpandedChat = true })
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
-            .background(Color(hex: "0E0809").opacity(0.6))
+            .background(Color.huddleBackground.opacity(0.6))
 
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 10) {
                         if viewModel.messages.isEmpty {
                             VStack(spacing: 12) {
-                                Image(systemName: "message").font(.system(size: 48)).foregroundColor(Color(hex: "F5E9E2").opacity(0.2)).padding(.top, 60)
-                                Text("No messages yet").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
-                                Text("Be the first to say something!").font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                                Image(systemName: "message").font(.system(size: 48)).foregroundColor(Color.huddleTextPrimary.opacity(0.2)).padding(.top, 60)
+                                Text("No messages yet").font(.system(size: 18, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                                Text("Be the first to say something!").font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                             }.frame(maxWidth: .infinity)
                         } else {
                             // Date pill
@@ -664,11 +644,11 @@ struct FamilyFeedView: View {
                                 Spacer()
                                 Text("Today")
                                     .font(.system(size: 10.5, weight: .semibold))
-                                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                                    .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                                     .padding(.horizontal, 12).padding(.vertical, 4)
-                                    .background(Color(hex: "281A16").opacity(0.5))
+                                    .background(Color.huddleGlassFill)
                                     .cornerRadius(999)
-                                    .overlay(RoundedRectangle(cornerRadius: 999).stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 999).stroke(Color.huddleBorder, lineWidth: 1))
                                 Spacer()
                             }
                             ForEach(viewModel.messages) { message in
@@ -685,7 +665,7 @@ struct FamilyFeedView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { proxy.scrollTo("msgBottom", anchor: .bottom) }
                 }
                 .onChange(of: viewModel.messages.count) { _ in
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("msgBottom", anchor: .bottom) }
+                    proxy.scrollTo("msgBottom", anchor: .bottom)
                 }
             }
         }
@@ -693,7 +673,7 @@ struct FamilyFeedView: View {
 
     private func systemMessageView(message: HuddleMessage) -> some View {
         Text(message.content)
-            .font(.system(size: 11)).foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
+            .font(.system(size: 11)).foregroundColor(Color.huddleTextPrimary.opacity(0.4))
             .frame(maxWidth: .infinity).multilineTextAlignment(.center).padding(.vertical, 2)
     }
 
@@ -702,8 +682,8 @@ struct FamilyFeedView: View {
         return HStack(spacing: 12) {
             Text("📍").font(.system(size: 24))
             VStack(alignment: .leading, spacing: 2) {
-                Text(label.isEmpty ? "Ping" : label).font(.system(size: 14, weight: .semibold)).foregroundColor(.white)
-                Text("\(message.senderName) · \(formatTime(message.createdAt))").font(.caption).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                Text(label.isEmpty ? "Ping" : label).font(.system(size: 14, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                Text("\(message.senderName) · \(formatTime(message.createdAt))").font(.caption).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
             }
             Spacer()
         }
@@ -725,20 +705,20 @@ struct FamilyFeedView: View {
                 if !isMe {
                     Text(message.senderName)
                         .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.55))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                         .padding(.leading, 6)
                 }
                 Text(message.content)
                     .font(.system(size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
                     .padding(.horizontal, 12).padding(.vertical, 9)
                     .background(
                         isMe
                             ? AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "F26A45"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom)
                                 .cornerRadius(16).shadow(color: Color(hex: "D8512B").opacity(0.35), radius: 6, x: 0, y: 3))
-                            : AnyView(Color(hex: "281A16").opacity(0.65)
+                            : AnyView(Color.huddleGlassFill
                                 .cornerRadius(16)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1)))
+                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.huddleBorder, lineWidth: 1)))
                     )
                     .contextMenu {
                         Menu("React") {
@@ -755,7 +735,7 @@ struct FamilyFeedView: View {
                     }
                 if let reactions = message.reactions, !reactions.isEmpty { reactionRow(reactions: reactions, message: message) }
                 Text(formatTime(message.createdAt))
-                    .font(.system(size: 10)).foregroundColor(Color(hex: "F5E9E2").opacity(0.35))
+                    .font(.system(size: 10)).foregroundColor(Color.huddleTextPrimary.opacity(0.35))
             }
             if !isMe { Spacer(minLength: 48) }
         }
@@ -771,11 +751,11 @@ struct FamilyFeedView: View {
                         Text(emoji).font(.system(size: 12))
                         if users.count > 1 {
                             Text("\(users.count)").font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(isMine ? Color(hex: "FF8A66") : Color(hex: "F5E9E2").opacity(0.5))
+                                .foregroundColor(isMine ? Color(hex: "FF8A66") : Color.huddleTextPrimary.opacity(0.5))
                         }
                     }
                     .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(isMine ? Color(hex: "FF8A66").opacity(0.14) : Color(hex: "281A16").opacity(0.55))
+                    .background(isMine ? Color(hex: "FF8A66").opacity(0.14) : Color.huddleGlassFill)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(isMine ? Color(hex: "FF8A66").opacity(0.4) : Color.clear, lineWidth: 1))
                 }
@@ -790,7 +770,7 @@ struct FamilyFeedView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     LushEyebrow(text: "Shared list")
-                    Text("Groceries").font(.system(size: 20, weight: .bold)).foregroundColor(.white).tracking(-0.5)
+                    Text("Groceries").font(.system(size: 20, weight: .bold)).foregroundColor(Color.huddleTextPrimary).tracking(-0.5)
                 }
                 Spacer()
                 Button(action: { viewModel.showShoppingList = true }) {
@@ -810,8 +790,8 @@ struct FamilyFeedView: View {
                 if viewModel.shoppingItems.isEmpty {
                     VStack(spacing: 14) {
                         ClayIcon(systemImage: "cart", lushColor: .slate, size: 60).padding(.top, 60)
-                        Text("Your list is empty").font(.system(size: 18, weight: .semibold)).foregroundColor(.white)
-                        Text("Tap \"Add Items\" to get started").font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                        Text("Your list is empty").font(.system(size: 18, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                        Text("Tap \"Add Items\" to get started").font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                     }.frame(maxWidth: .infinity)
                 } else {
                     LazyVStack(spacing: 10) {
@@ -831,15 +811,15 @@ struct FamilyFeedView: View {
                                     }
                                 }
                                 Text(item.content)
-                                    .font(.system(size: 15)).foregroundColor(item.isCompleted ? Color(hex: "F5E9E2").opacity(0.4) : .white)
-                                    .strikethrough(item.isCompleted, color: Color(hex: "F5E9E2").opacity(0.4))
+                                    .font(.system(size: 15)).foregroundColor(item.isCompleted ? Color.huddleTextPrimary.opacity(0.4) : Color.huddleTextPrimary)
+                                    .strikethrough(item.isCompleted, color: Color.huddleTextPrimary.opacity(0.4))
                                 Spacer()
                             }
                             .padding(.horizontal, 14).padding(.vertical, 13)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color(hex: "281A16").opacity(item.isCompleted ? 0.35 : 0.55))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1))
+                                    .fill(Color.huddleGlassFill)
+                                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.huddleBorder, lineWidth: 1))
                             )
                             .opacity(item.isCompleted ? 0.7 : 1)
                         }
@@ -862,15 +842,15 @@ struct FamilyFeedView: View {
                         ClayIcon(systemImage: "house.fill", lushColor: .coral, size: 40)
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 6) {
-                                Text(family.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.white)
+                                Text(family.name).font(.system(size: 17, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                                 if viewModel.isCurrentUserAdmin {
-                                    Image(systemName: "pencil").font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                                    Image(systemName: "pencil").font(.system(size: 12)).foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                                 }
                             }
                             .onTapGesture {
                                 if viewModel.isCurrentUserAdmin { newFamilyName = family.name; showRenameAlert = true }
                             }
-                            Text("\(unique.count) members").font(.system(size: 13)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                            Text("\(unique.count) members").font(.system(size: 13)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                         }
                         Spacer()
                     }
@@ -879,7 +859,7 @@ struct FamilyFeedView: View {
                         Text(family.code)
                             .font(.system(size: 30, weight: .bold))
                             .foregroundColor(Color(hex: "FF8A66")).tracking(6)
-                        Text("family invite code").font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                        Text("family invite code").font(.system(size: 12)).foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                     }
                     .frame(maxWidth: .infinity).padding(.vertical, 16)
                     .background(Color(hex: "FF8A66").opacity(0.06)).cornerRadius(14)
@@ -897,7 +877,7 @@ struct FamilyFeedView: View {
                                 Text("Copy Code").font(.system(size: 14, weight: .semibold))
                             }
                             .foregroundColor(Color(hex: "FF8A66")).frame(maxWidth: .infinity).padding(.vertical, 12)
-                            .background(Color(hex: "281A16").opacity(0.55)).cornerRadius(12)
+                            .background(Color.huddleGlassFill).cornerRadius(12)
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "FF8A66").opacity(0.3), lineWidth: 1))
                         }
                         ShareLink(item: family.code) {
@@ -911,12 +891,12 @@ struct FamilyFeedView: View {
                     }
                 }
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 20).fill(Color(hex: "281A16").opacity(0.55)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1)))
+                .background(RoundedRectangle(cornerRadius: 20).fill(Color.huddleGlassFill).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1)))
                 .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
 
                 // Members list
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Members (\(unique.count))").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
+                    Text("Members (\(unique.count))").font(.system(size: 15, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
                     VStack(spacing: 0) {
                         ForEach(Array(unique.enumerated()), id: \.element.id) { idx, member in
                             HStack(spacing: 12) {
@@ -924,7 +904,7 @@ struct FamilyFeedView: View {
                                     ? (authService.currentUser?.photoBase64 ?? member.photoBase64)
                                     : member.photoBase64
                                 MemberAvatarView(name: member.displayName, photoBase64: photo, size: 40)
-                                Text(member.displayName).font(.system(size: 15)).foregroundColor(.white)
+                                Text(member.displayName).font(.system(size: 15)).foregroundColor(Color.huddleTextPrimary)
                                 if family.adminId == member.id {
                                     Text("Admin").font(.system(size: 10, weight: .bold))
                                         .foregroundColor(Color(hex: "FF8A66"))
@@ -940,12 +920,12 @@ struct FamilyFeedView: View {
                                     Button { viewModel.transferAdmin(to: member) } label: { Label("Make Admin", systemImage: "star.fill") }
                                 }
                             }
-                            if idx < unique.count - 1 { Divider().padding(.leading, 52).overlay(Color(hex: "FFC8AA").opacity(0.08)) }
+                            if idx < unique.count - 1 { Divider().padding(.leading, 52).overlay(Color.huddleBorder) }
                         }
                     }
                 }
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 20).fill(Color(hex: "281A16").opacity(0.55)).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1)))
+                .background(RoundedRectangle(cornerRadius: 20).fill(Color.huddleGlassFill).overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.huddleBorder, lineWidth: 1)))
                 .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
 
                 // Leave button
@@ -963,7 +943,7 @@ struct FamilyFeedView: View {
                 // Appearance picker
                 HStack {
                     Label("Appearance", systemImage: "moon.fill")
-                        .font(.system(size: 15)).foregroundColor(.white)
+                        .font(.system(size: 15)).foregroundColor(Color.huddleTextPrimary)
                     Spacer()
                     Picker("", selection: $colorSchemePreference) {
                         Text("System").tag(0)
@@ -973,7 +953,7 @@ struct FamilyFeedView: View {
                     .pickerStyle(.segmented).frame(width: 185)
                 }
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "281A16").opacity(0.55)).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1)))
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.huddleGlassFill).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.huddleBorder, lineWidth: 1)))
                 .shadow(color: .black.opacity(0.35), radius: 12, x: 0, y: 8)
             }
             .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 16)
@@ -984,9 +964,9 @@ struct FamilyFeedView: View {
 
     private var pingTrayView: some View {
         ZStack {
-            Color(hex: "0E0809").ignoresSafeArea()
+            Color.huddleBackground.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 16) {
-                Text("Send a ping").font(.system(size: 17, weight: .semibold)).foregroundColor(.white).padding(.horizontal)
+                Text("Send a ping").font(.system(size: 17, weight: .semibold)).foregroundColor(Color.huddleTextPrimary).padding(.horizontal)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(pingOptions, id: \.self) { label in
                         Button {
@@ -999,10 +979,10 @@ struct FamilyFeedView: View {
                                 Text(label).font(.subheadline).fontWeight(.medium)
                                 Spacer()
                             }
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.huddleTextPrimary)
                             .padding(12)
-                            .background(Color(hex: "281A16").opacity(0.55)).cornerRadius(14)
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                            .background(Color.huddleGlassFill).cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.huddleBorder, lineWidth: 1))
                         }
                     }
                 }
@@ -1018,19 +998,19 @@ struct FamilyFeedView: View {
         if let family = viewModel.family {
             return AnyView(
                 ZStack {
-                    Color(hex: "0E0809").ignoresSafeArea()
+                    Color.huddleBackground.ignoresSafeArea()
                     VStack(spacing: 0) {
                         RoundedRectangle(cornerRadius: 3).fill(Color(hex: "FFC8AA").opacity(0.3))
                             .frame(width: 40, height: 5).padding(.top, 12).padding(.bottom, 20)
                         VStack(spacing: 20) {
                             ClayIcon(systemImage: "person.badge.plus", lushColor: .coral, size: 64, glow: true)
                             VStack(spacing: 6) {
-                                Text("Invite to \(family.name)").font(.system(size: 22, weight: .semibold)).foregroundColor(.white)
-                                Text("Share this code with family members").font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                                Text("Invite to \(family.name)").font(.system(size: 22, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                                Text("Share this code with family members").font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.6))
                             }
                             VStack(spacing: 6) {
                                 Text(family.code).font(.system(size: 32, weight: .bold)).foregroundColor(Color(hex: "FF8A66")).tracking(6)
-                                Text("family code").font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.45))
+                                Text("family code").font(.system(size: 12)).foregroundColor(Color.huddleTextPrimary.opacity(0.45))
                             }
                             .frame(maxWidth: .infinity).padding(.vertical, 18)
                             .background(Color(hex: "FF8A66").opacity(0.07)).cornerRadius(14)
@@ -1040,7 +1020,7 @@ struct FamilyFeedView: View {
                                     HStack(spacing: 6) { Image(systemName: "doc.on.doc"); Text("Copy Code") }
                                         .font(.system(size: 15, weight: .semibold)).foregroundColor(Color(hex: "FF8A66"))
                                         .frame(maxWidth: .infinity).padding(.vertical, 13)
-                                        .background(Color(hex: "281A16").opacity(0.55)).cornerRadius(12)
+                                        .background(Color.huddleGlassFill).cornerRadius(12)
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "FF8A66").opacity(0.3), lineWidth: 1))
                                 }
                                 ShareLink(item: family.code) {
@@ -1051,7 +1031,7 @@ struct FamilyFeedView: View {
                                 }
                             }
                             Button("Done") { viewModel.showShareSheet = false }
-                                .font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5)).padding(.bottom, 8)
+                                .font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.5)).padding(.bottom, 8)
                         }
                         .padding(.horizontal, 24).padding(.bottom, 24)
                     }
@@ -1081,6 +1061,7 @@ private struct MessageInputBar: View {
     let onPingTap: () -> Void
 
     @State private var messageText = ""
+    @State private var sendPulse = false
     @FocusState private var isFocused: Bool
 
     var body: some View {
@@ -1098,43 +1079,53 @@ private struct MessageInputBar: View {
             HStack(spacing: 8) {
                 TextField("Send some love…", text: $messageText)
                     .font(.system(size: 14))
-                    .foregroundColor(.white)
+                    .foregroundColor(Color.huddleTextPrimary)
                     .focused($isFocused)
                     .onSubmit { send() }
                     .tint(Color(hex: "FF8A66"))
                 if !messageText.isEmpty {
                     Button(action: { messageText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Color(hex: "F5E9E2").opacity(0.4))
+                            .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
                     }
                 }
             }
             .padding(.horizontal, 14).padding(.vertical, 11)
-            .background(Color(hex: "281A16").opacity(0.55))
+            .background(Color.huddleGlassFill)
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(isFocused ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1)
+                    .stroke(isFocused ? Color(hex: "FF8A66").opacity(0.5) : Color.huddleBorder, lineWidth: 1)
             )
 
             Button(action: send) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 15))
-                    .foregroundColor(.white)
+                    .foregroundColor(messageText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.huddleTextPrimary : .white)
                     .frame(width: 42, height: 42)
                     .background(
                         messageText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? AnyView(Color(hex: "F5E9E2").opacity(0.08))
+                            ? AnyView(Color.huddleTextPrimary.opacity(0.08))
                             : AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
                     )
                     .clipShape(Circle())
                     .shadow(color: messageText.trimmingCharacters(in: .whitespaces).isEmpty ? .clear : Color(hex: "D8512B").opacity(0.4), radius: 6, x: 0, y: 3)
+                    .scaleEffect(sendPulse ? 1.18 : 1.0)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.5), value: sendPulse)
             }
             .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .onChange(of: messageText) { newValue in
+                let wasEmpty = messageText.trimmingCharacters(in: .whitespaces).isEmpty
+                let isNowNonEmpty = !newValue.trimmingCharacters(in: .whitespaces).isEmpty
+                if wasEmpty && isNowNonEmpty {
+                    sendPulse = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { sendPulse = false }
+                }
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
         .background(
-            LinearGradient(colors: [Color(hex: "0E0809").opacity(0.0), Color(hex: "0E0809").opacity(0.95)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color.huddleBackground.opacity(0.0), Color.huddleBackground.opacity(0.95)], startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
         )
     }
@@ -1145,6 +1136,38 @@ private struct MessageInputBar: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         onSend(text)
         messageText = ""
+    }
+}
+
+// MARK: - Live Ticker (isolated so only this re-renders every 3s, not heroCard)
+
+private struct LiveTickerView: View {
+    let items: [(String, String)]
+    @State private var index = 0
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.black.opacity(0.30))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.14), lineWidth: 1))
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color(hex: "7CFFA8"))
+                    .frame(width: 6, height: 6)
+                    .shadow(color: Color(hex: "7CFFA8"), radius: 4)
+                let item = items[index % items.count]
+                Text(item.0).font(.system(size: 12, weight: .bold)).foregroundColor(.white)
+                Text(item.1).font(.system(size: 12)).foregroundColor(.white.opacity(0.8))
+                Spacer()
+                Text("live").font(.system(size: 10, weight: .bold)).foregroundColor(.white.opacity(0.5))
+            }
+            .padding(.horizontal, 12)
+        }
+        .frame(height: 36)
+        .onReceive(Timer.publish(every: 3, on: .main, in: .common).autoconnect()) { _ in
+            guard items.count > 1 else { return }
+            withAnimation(.easeInOut(duration: 0.35)) { index = (index + 1) % items.count }
+        }
     }
 }
 

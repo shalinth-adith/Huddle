@@ -12,6 +12,7 @@ struct CreateFamily: View {
     @State private var selectedVibe = 0
     @State private var showCopiedToast = false
     @State private var cursorVisible = true
+    @FocusState private var isFamilyNameFocused: Bool
 
     private let vibes: [(emoji: String, label: String)] = [
         ("🏡", "Cozy nest"), ("🏔️", "Adventure crew"), ("🌿", "Calm garden"), ("🎨", "Creative chaos")
@@ -52,6 +53,7 @@ struct CreateFamily: View {
         }
         .buttonStyle(.plain)
         .ignoresSafeArea()
+        .onTapGesture { isFamilyNameFocused = false }
         .onAppear {
             withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) { cursorVisible = false }
         }
@@ -66,15 +68,15 @@ struct CreateFamily: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.7))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.7))
                         .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color(hex: "281A16").opacity(0.6)))
-                        .overlay(Circle().stroke(Color(hex: "FFC8AA").opacity(0.14), lineWidth: 1))
+                        .background(Circle().fill(Color.huddleGlassFill))
+                        .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
                 }
                 Spacer()
                 Text("Step 2 of 3")
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.5))
             }
             .padding(.horizontal, 20).padding(.top, 60).padding(.bottom, 16)
 
@@ -84,11 +86,11 @@ struct CreateFamily: View {
                     Spacer().frame(height: 8)
                     Text("Name your\nfamily.")
                         .font(.system(size: 32, weight: .bold))
-                        .foregroundColor(.white).tracking(-1.0)
+                        .foregroundColor(Color.huddleTextPrimary).tracking(-1.0)
                     Spacer().frame(height: 8)
                     Text("You can rename it later.")
                         .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "F5E9E2").opacity(0.6))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.6))
 
                     Spacer().frame(height: 24)
 
@@ -103,7 +105,7 @@ struct CreateFamily: View {
                                 HStack(spacing: 0) {
                                     Text(viewModel.familyName.isEmpty ? "Your family name" : viewModel.familyName)
                                         .font(.system(size: 20, weight: .bold))
-                                        .foregroundColor(viewModel.familyName.isEmpty ? Color(hex: "F5E9E2").opacity(0.35) : .white)
+                                        .foregroundColor(viewModel.familyName.isEmpty ? Color.huddleTextPrimary.opacity(0.35) : Color.huddleTextPrimary)
                                         .tracking(-0.5)
                                     if !viewModel.familyName.isEmpty {
                                         Rectangle()
@@ -122,16 +124,17 @@ struct CreateFamily: View {
                     HStack {
                         TextField("e.g. The Sharma's", text: $viewModel.familyName)
                             .font(.system(size: 16))
-                            .foregroundColor(.white)
+                            .foregroundColor(Color.huddleTextPrimary)
                             .autocorrectionDisabled(true)
+                            .focused($isFamilyNameFocused)
                     }
                     .padding(.horizontal, 16).padding(.vertical, 14)
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(hex: "281A16").opacity(0.55))
+                            .fill(Color.huddleGlassFill)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .stroke(viewModel.familyName.isEmpty ? Color(hex: "FFC8AA").opacity(0.14) : Color(hex: "FF8A66").opacity(0.5), lineWidth: 1)
+                                    .stroke(viewModel.familyName.isEmpty ? Color.huddleBorder : Color(hex: "FF8A66").opacity(0.5), lineWidth: 1)
                             )
                     )
 
@@ -148,7 +151,7 @@ struct CreateFamily: View {
                                     Text(v.emoji).font(.system(size: 20))
                                     Text(v.label)
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(selectedVibe == i ? .white : Color(hex: "F5E9E2").opacity(0.7))
+                                        .foregroundColor(selectedVibe == i ? .white : Color.huddleTextPrimary.opacity(0.7))
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 14).padding(.vertical, 13)
@@ -156,10 +159,10 @@ struct CreateFamily: View {
                                     RoundedRectangle(cornerRadius: 16)
                                         .fill(selectedVibe == i
                                               ? LinearGradient(colors: [Color(hex: "FF8A66").opacity(0.22), Color(hex: "E85A7A").opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                                              : LinearGradient(colors: [Color(hex: "281A16").opacity(0.5)], startPoint: .top, endPoint: .bottom))
+                                              : LinearGradient(colors: [Color.huddleGlassFill], startPoint: .top, endPoint: .bottom))
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 16)
-                                                .stroke(selectedVibe == i ? Color(hex: "FF8A66").opacity(0.5) : Color(hex: "FFC8AA").opacity(0.12), lineWidth: 1)
+                                                .stroke(selectedVibe == i ? Color(hex: "FF8A66").opacity(0.5) : Color.huddleBorder, lineWidth: 1)
                                         )
                                 )
                                 .shadow(color: selectedVibe == i ? Color(hex: "FF8A66").opacity(0.2) : .clear, radius: 10, x: 0, y: 4)
@@ -185,12 +188,12 @@ struct CreateFamily: View {
                         systemImage: "star.fill",
                         isLoading: viewModel.isLoading,
                         isDisabled: viewModel.familyName.trimmingCharacters(in: .whitespaces).isEmpty
-                    ) { viewModel.createFamily() }
+                    ) { isFamilyNameFocused = false; viewModel.createFamily() }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 38)
                 .background(
-                    LinearGradient(colors: [.clear, Color(hex: "0E0809").opacity(0.9), Color(hex: "0E0809")], startPoint: .top, endPoint: .bottom)
+                    LinearGradient(colors: [.clear, Color.huddleBackground.opacity(0.9), Color.huddleBackground], startPoint: .top, endPoint: .bottom)
                         .ignoresSafeArea()
                 )
             }
@@ -212,11 +215,11 @@ struct CreateFamily: View {
             }
             VStack(spacing: 10) {
                 Text("Your Huddle is ready!")
-                    .font(.system(size: 26, weight: .bold)).foregroundColor(.white).tracking(-0.5)
+                    .font(.system(size: 26, weight: .bold)).foregroundColor(Color.huddleTextPrimary).tracking(-0.5)
                 Text(viewModel.familyName)
                     .font(.system(size: 20, weight: .semibold)).foregroundColor(Color(hex: "FF8A66"))
                 Text("Share your invite code with family members so they can join.")
-                    .font(.system(size: 14)).foregroundColor(Color(hex: "F5E9E2").opacity(0.65))
+                    .font(.system(size: 14)).foregroundColor(Color.huddleTextPrimary.opacity(0.65))
                     .multilineTextAlignment(.center).lineSpacing(3).padding(.horizontal, 16)
             }
 
@@ -226,7 +229,7 @@ struct CreateFamily: View {
                         .font(.system(size: 32, weight: .bold))
                         .foregroundColor(Color(hex: "FF8A66")).tracking(6)
                     Text("family invite code")
-                        .font(.system(size: 12)).foregroundColor(Color(hex: "F5E9E2").opacity(0.5))
+                        .font(.system(size: 12)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
@@ -245,7 +248,7 @@ struct CreateFamily: View {
                     }
                     .foregroundColor(Color(hex: "FF8A66"))
                     .frame(maxWidth: .infinity).padding(.vertical, 14)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "281A16").opacity(0.55))
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.huddleGlassFill)
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "FF8A66").opacity(0.3), lineWidth: 1)))
                 }
                 Button(action: { dismiss() }) {
