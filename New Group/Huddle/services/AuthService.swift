@@ -9,6 +9,7 @@ import Foundation
 import UIKit
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseMessaging
 import Combine
 
   class AuthService: ObservableObject {
@@ -24,6 +25,7 @@ import Combine
           isCheckingAuth = Auth.auth().currentUser != nil
           photoThumbnailBase64 = UserDefaults.standard.string(forKey: "photoThumbnailBase64")
           checkAuthStatus()
+          listenForFCMTokenRefresh()
       }
 
       // Check if user is already signed in
@@ -94,6 +96,7 @@ import Combine
                   case .success:
                       self?.currentUser = newUser
                       self?.isAuthenticated = true
+                      self?.saveFCMToken(userId: userId)
                       completion(.success(newUser))
                   }
               }
@@ -150,7 +153,7 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
           // Refresh from server in background (keeps data fresh without blocking UI)
           ref.getDocument(source: .server) { [weak self] snapshot, error in
               if let error {
-                  print("Error fetching user profile: \(error.localizedDescription)")
+                  debugLog("Error fetching user profile: \(error.localizedDescription)")
                   DispatchQueue.main.async { self?.isCheckingAuth = false }
                   return
               }
@@ -168,9 +171,10 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
                       self?.currentUser = user
                       self?.isAuthenticated = true
                       self?.isCheckingAuth = false
+                      self?.saveFCMToken(userId: userId)
                   }
               } catch {
-                  print("Error decoding user: \(error.localizedDescription)")
+                  debugLog("Error decoding user: \(error.localizedDescription)")
                   DispatchQueue.main.async { self?.isCheckingAuth = false }
               }
           }
@@ -216,13 +220,28 @@ private func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
           db.collection("users").document(userId).updateData(update) { _ in completion() }
       }
 
+      func saveFCMToken(userId: String) {
+          Messaging.messaging().token { [weak self] token, _ in
+              guard let token else { return }
+              self?.db.collection("users").document(userId).updateData(["fcmToken": token])
+          }
+      }
+
+      private func listenForFCMTokenRefresh() {
+          NotificationCenter.default.addObserver(forName: .fcmTokenRefreshed, object: nil, queue: .main) { [weak self] note in
+              guard let token = note.object as? String,
+                    let userId = self?.currentUser?.id else { return }
+              self?.db.collection("users").document(userId).updateData(["fcmToken": token])
+          }
+      }
+
       func signOut() {
           do {
               try Auth.auth().signOut()
               currentUser = nil
               isAuthenticated = false
           } catch {
-              print("Error signing out: \(error.localizedDescription)")
+              debugLog("Error signing out: \(error.localizedDescription)")
           }
       }
 

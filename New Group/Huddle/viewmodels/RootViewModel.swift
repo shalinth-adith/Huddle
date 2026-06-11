@@ -21,10 +21,10 @@ class RootViewModel: ObservableObject {
         authService.signInAnonymously(displayName: name, profileImage: image) { result in
             switch result {
             case .success(let user):
-                print("✅ Signed in: \(user.displayName)")
+                debugLog("✅ Signed in: \(user.displayName)")
                 self.showNameInput = false
             case .failure(let error):
-                print("❌ Error: \(error.localizedDescription)")
+                debugLog("❌ Error: \(error.localizedDescription)")
             }
         }
     }

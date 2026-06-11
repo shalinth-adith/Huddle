@@ -10,6 +10,7 @@
 		F0B3E6D62ECD97A500115C51 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D52ECD97A500115C51 /* FirebaseAuth */; };
 		F0B3E6D82ECD97B300115C51 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D72ECD97B300115C51 /* FirebaseFirestore */; };
 		F0B3E6DA2ECD97BA00115C51 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6D92ECD97BA00115C51 /* FirebaseStorage */; };
+		F0B3E6DC2ECD97C000115C51 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = F0B3E6DB2ECD97C000115C51 /* FirebaseMessaging */; };
 		F0D5A58B2F3B4C6E007E64CF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0D5A58A2F3B4C6E007E64CF /* WidgetKit.framework */; };
 		F0D5A58D2F3B4C6E007E64CF /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F0D5A58C2F3B4C6E007E64CF /* SwiftUI.framework */; };
 		F0D5A59A2F3B4C6E007E64CF /* HuddleWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F0D5A5892F3B4C6E007E64CF /* HuddleWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -128,6 +129,7 @@
 				F0B3E6D62ECD97A500115C51 /* FirebaseAuth in Frameworks */,
 				F0B3E6D82ECD97B300115C51 /* FirebaseFirestore in Frameworks */,
 				F0B3E6DA2ECD97BA00115C51 /* FirebaseStorage in Frameworks */,
+				F0B3E6DC2ECD97C000115C51 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,6 +228,7 @@
 				F0B3E6D52ECD97A500115C51 /* FirebaseAuth */,
 				F0B3E6D72ECD97B300115C51 /* FirebaseFirestore */,
 				F0B3E6D92ECD97BA00115C51 /* FirebaseStorage */,
+				F0B3E6DB2ECD97C000115C51 /* FirebaseMessaging */,
 			);
 			productName = Huddle;
 			productReference = F0B3E6A02ECD871800115C51 /* Huddle.app */;
@@ -709,7 +712,7 @@
 				DEVELOPMENT_TEAM = 649T62WKAQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HuddleWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HuddleWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = Huddle;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -740,7 +743,7 @@
 				DEVELOPMENT_TEAM = 649T62WKAQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = HuddleWidget/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = HuddleWidget;
+				INFOPLIST_KEY_CFBundleDisplayName = Huddle;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -836,6 +839,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = F0B3E6CA2ECD8F0D00115C51 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		F0B3E6DB2ECD97C000115C51 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F0B3E6CA2ECD8F0D00115C51 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -7,6 +7,7 @@
   import Foundation
   import SwiftUI
   import Combine
+  import FirebaseFirestore
 
   class FamilyFeedViewModel: ObservableObject {
       @Published var family: Family?

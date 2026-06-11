@@ -41,6 +41,7 @@ creatorName, creatorPhotoBase64: creatorPhotoBase64, creatorPublicKey: creatorPu
                 name: familyName,
                 code: familyCode,
                 members: [member],
+                memberIds: [creatorId],
                 adminId: creatorId,
                 encryptedGroupKeys: encryptedGroupKeys
             )
@@ -65,7 +66,7 @@ error in
               .whereField("code", isEqualTo: code)
               .getDocuments(source: .default) { (snapshot, error) in
                   if let error = error {
-                      print("Error checking code: \(error)")
+                      debugLog("Error checking code: \(error)")
                       completion(false)
                       return
                   }
@@ -109,7 +110,8 @@ error in
                 let newMember = Member(id: userId, displayName: displayName, photoBase64: photoBase64, joinedAt: Date(), publicKey: publicKey)
 
                 self?.db.collection("families").document(familyId).updateData([
-                    "members": FieldValue.arrayUnion([newMember.toDictionary()])
+                    "members": FieldValue.arrayUnion([newMember.toDictionary()]),
+                    "memberIds": FieldValue.arrayUnion([userId])
                 ]) { error in
                     if let error = error {
                         completion(.failure(error))
@@ -138,7 +140,10 @@ error in
                 return
             }
             let remaining = family.members.filter { $0.id != userId }
-            var updateData: [String: Any] = ["members": remaining.map { $0.toDictionary() }]
+            var updateData: [String: Any] = [
+                "members": remaining.map { $0.toDictionary() },
+                "memberIds": remaining.map { $0.id }
+            ]
             // Auto-transfer admin to oldest remaining member if admin is leaving
             if family.adminId == userId, let newAdmin = remaining.sorted(by: { $0.joinedAt < $1.joinedAt }).first {
                 updateData["adminId"] = newAdmin.id
@@ -158,8 +163,11 @@ error in
                 completion(.failure(NSError(domain: "FamilyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
                 return
             }
-            let remaining = family.members.filter { $0.id != userId }.map { $0.toDictionary() }
-            ref.updateData(["members": remaining]) { error in
+            let remaining = family.members.filter { $0.id != userId }
+            ref.updateData([
+                "members": remaining.map { $0.toDictionary() },
+                "memberIds": remaining.map { $0.id }
+            ]) { error in
                 if let error = error { completion(.failure(error)); return }
                 completion(.success(()))
             }

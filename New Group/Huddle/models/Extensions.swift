@@ -9,6 +9,13 @@ import Foundation
 import UIKit
 import SwiftUI
 
+// Compiled out of Release builds — App Store binaries log nothing
+func debugLog(_ message: @autoclosure () -> String) {
+    #if DEBUG
+    print(message())
+    #endif
+}
+
 extension UIColor {
     convenience init(hex: String) {
         let scanner = Scanner(string: hex)
