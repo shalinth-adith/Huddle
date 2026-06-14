@@ -49,9 +49,31 @@ service cloud.firestore {
         && request.resource.data.memberIds.size() <= 6;
       allow update: if (isMember() || isJoiningSelf())
         && request.resource.data.memberIds.size() <= 6;
-      allow delete: if false;
+      // The last remaining member may delete the whole group. Safe: this only
+      // ever deletes a group that is already just you.
+      allow delete: if isSignedIn()
+        && request.auth.uid in resource.data.memberIds
+        && resource.data.memberIds.size() == 1;
 
       match /messages/{messageId} {
+        function isFamilyMember() {
+          return isSignedIn()
+            && request.auth.uid in
+               get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+        }
+        allow read, create, update, delete: if isFamilyMember();
+      }
+
+      match /events/{eventId} {
+        function isFamilyMember() {
+          return isSignedIn()
+            && request.auth.uid in
+               get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+        }
+        allow read, create, update, delete: if isFamilyMember();
+      }
+
+      match /capsules/{capsuleId} {
         function isFamilyMember() {
           return isSignedIn()
             && request.auth.uid in

@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// Huddle Storage model:
+// - Only encrypted photo blobs live here, under families/{familyId}/photos/.
+// - Bytes are AES-256-GCM ciphertext (sealed with the family group key), so
+//   Storage never holds a plaintext image.
+// - Access is gated on family membership by reading the SAME memberIds array
+//   the Firestore rules use, via firestore.get(). This keeps one source of
+//   truth for "who is in this family".
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /families/{familyId}/photos/{fileName} {
+      function isMember() {
+        return request.auth != null
+          && request.auth.uid in
+             firestore.get(/databases/(default)/documents/families/$(familyId)).data.memberIds;
+      }
+
+      allow read: if isMember();
+      // Covers upload (size-capped) and delete (request.resource is null on delete).
+      allow write: if isMember()
+        && (request.resource == null || request.resource.size < 15 * 1024 * 1024);
+    }
+
+    // Everything else is denied.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
