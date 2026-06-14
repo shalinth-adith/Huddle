@@ -44,10 +44,20 @@ struct HuddleApp: App {
                                                                                                       
      private func handleDeepLink(_ url: URL) {
          guard url.scheme == "huddle" else { return }
-                                                                                                      
+
          switch url.host {
          case "shopping":
              openToShopping = true
+         case "group":
+             // huddle://group/<id> or huddle://group/<id>/shopping
+             let parts = url.pathComponents.filter { $0 != "/" }
+             guard let groupId = parts.first else { break }
+             // pendingFamilyId covers cold start; the post covers the warm case.
+             AppDelegate.pendingFamilyId = groupId
+             NotificationCenter.default.post(name: .openFamilyRequested, object: groupId)
+             if parts.count > 1 && parts[1] == "shopping" {
+                 openToShopping = true
+             }
          default:
              // Just open app (huddle://open)
              break

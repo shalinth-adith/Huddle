@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import PhotosUI
 
 struct FamilyFeedView: View {
     @EnvironmentObject var authService: AuthService
@@ -12,12 +13,13 @@ struct FamilyFeedView: View {
     @State private var showLeaveAlert = false
     @State private var showRenameAlert = false
     @State private var newFamilyName = ""
-    @State private var showGroupSwitcher = false
     @State private var showPingTray = false
     @State private var messageToDelete: HuddleMessage?
     @State private var memberToRemove: Member?
     @State private var showCopiedToast = false
     @State private var showExpandedChat = false
+    @State private var showTimeCapsule = false
+    @State private var showAskHuddle = false
 
     // Lush animation states
     @State private var floatPhase = false
@@ -27,12 +29,13 @@ struct FamilyFeedView: View {
     ]
 
     enum FeedTab: CaseIterable {
-        case home, messages, shopping, family
+        case home, messages, calendar, shopping, family
 
         var icon: String {
             switch self {
             case .home:     return "house"
             case .messages: return "message"
+            case .calendar: return "calendar"
             case .shopping: return "cart"
             case .family:   return "person.2"
             }
@@ -41,6 +44,7 @@ struct FamilyFeedView: View {
             switch self {
             case .home:     return "house.fill"
             case .messages: return "message.fill"
+            case .calendar: return "calendar"
             case .shopping: return "cart.fill"
             case .family:   return "person.2.fill"
             }
@@ -49,6 +53,7 @@ struct FamilyFeedView: View {
             switch self {
             case .home:     return "Home"
             case .messages: return "Messages"
+            case .calendar: return "Calendar"
             case .shopping: return "Shopping"
             case .family:   return "Family"
             }
@@ -56,14 +61,26 @@ struct FamilyFeedView: View {
     }
 
     private let messageService: MessageService
+    private let capsuleService: CapsuleService
+    private let onBack: () -> Void
+
+    @StateObject private var eventsViewModel: EventsViewModel
 
     init(familyService: FamilyService, messageService: MessageService,
-         authService: AuthService, openToShopping: Binding<Bool>) {
+         eventService: EventService, capsuleService: CapsuleService,
+         authService: AuthService,
+         openToShopping: Binding<Bool>, onBack: @escaping () -> Void) {
         self.messageService = messageService
+        self.capsuleService = capsuleService
+        self.onBack = onBack
         _viewModel = StateObject(wrappedValue: FamilyFeedViewModel(
             familyService: familyService,
             authService: authService,
             messageService: messageService
+        ))
+        _eventsViewModel = StateObject(wrappedValue: EventsViewModel(
+            eventService: eventService,
+            authService: authService
         ))
         _openToShopping = openToShopping
     }
@@ -98,6 +115,7 @@ struct FamilyFeedView: View {
                         if selectedTab == .messages {
                             MessageInputBar(
                                 onSend: { viewModel.sendMessage(content: $0) },
+                                onSendPhoto: { image, caption in viewModel.sendPhoto(image: image, caption: caption) },
                                 onPingTap: { showPingTray = true }
                             )
                         }
@@ -124,6 +142,8 @@ struct FamilyFeedView: View {
             viewModel.loadShoppingItems()
             viewModel.loadPinnedMessages()
             if selectedTab == .messages { viewModel.markMessagesAsRead() }
+            // Widget "shopping" deep link may have set this before the feed appeared.
+            if openToShopping { selectedTab = .shopping; openToShopping = false }
             floatPhase = true
         }
         .onChange(of: selectedTab) { tab in
@@ -131,9 +151,13 @@ struct FamilyFeedView: View {
         }
         .onDisappear { viewModel.cleanup() }
         .alert("Leave Huddle?", isPresented: $showLeaveAlert) {
-            Button("Leave", role: .destructive) { viewModel.leaveGroup() }
+            Button("Leave", role: .destructive) { viewModel.leaveGroup { onBack() } }
             Button("Cancel", role: .cancel) {}
-        } message: { Text("You will be removed from this group.") }
+        } message: {
+            Text(viewModel.family.map { $0.members.count <= 1 } == true
+                 ? "You're the last member — leaving will permanently delete this group and all its messages."
+                 : "You will be removed from this group.")
+        }
         .alert("Rename Group", isPresented: $showRenameAlert) {
             TextField("Group name", text: $newFamilyName)
             Button("Save") { viewModel.renameFamily(newFamilyName) }
@@ -155,41 +179,6 @@ struct FamilyFeedView: View {
         } message: {
             if let m = memberToRemove { Text("\(m.displayName) will be removed from the group.") }
         }
-        .sheet(isPresented: $showGroupSwitcher) {
-            NavigationView {
-                ZStack {
-                    Color.huddleBackground.ignoresSafeArea()
-                    List {
-                        ForEach(viewModel.availableFamilies) { fam in
-                            Button {
-                                if let id = fam.id { showGroupSwitcher = false; viewModel.switchGroup(to: id) }
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(fam.name).font(.system(size: 16, weight: .medium)).foregroundColor(Color.huddleTextPrimary)
-                                        Text("\(fam.members.count) member\(fam.members.count == 1 ? "" : "s")")
-                                            .font(.system(size: 13)).foregroundColor(Color.huddleTextPrimary.opacity(0.5))
-                                    }
-                                    Spacer()
-                                    if fam.id == authService.currentUser?.currentFamilyId {
-                                        Image(systemName: "checkmark").foregroundColor(Color(hex: "FF8A66"))
-                                    }
-                                }
-                            }
-                            .listRowBackground(Color.huddleSurface)
-                        }
-                    }
-                    .scrollContentBackground(.hidden)
-                    .navigationTitle("Your Groups")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            Button("Done") { showGroupSwitcher = false }.foregroundColor(Color(hex: "FF8A66"))
-                        }
-                    }
-                }
-            }
-        }
         .onChange(of: openToShopping) { newValue in
             if newValue { selectedTab = .shopping; openToShopping = false }
         }
@@ -199,6 +188,22 @@ struct FamilyFeedView: View {
                 ShoppingList(family: family, messageService: messageService)
                     .environmentObject(authService)
             }
+        }
+        .fullScreenCover(isPresented: $showTimeCapsule) {
+            TimeCapsuleView(capsuleService: capsuleService, authService: authService)
+                .environmentObject(authService)
+        }
+        .fullScreenCover(isPresented: $showAskHuddle) {
+            AskHuddleView(
+                familyName: viewModel.family?.name ?? "your family",
+                recentMessages: viewModel.messages.suffix(40).compactMap { msg in
+                    switch msg.type {
+                    case .system: return nil
+                    case .photo:  return "\(msg.senderName): [photo]"
+                    default:      return "\(msg.senderName): \(msg.content)"
+                    }
+                }
+            )
         }
     }
 
@@ -271,6 +276,7 @@ struct FamilyFeedView: View {
         switch selectedTab {
         case .home:     homeTab(family: family)
         case .messages: messagesTab()
+        case .calendar: CalendarView(viewModel: eventsViewModel, members: family.members)
         case .shopping: shoppingTab()
         case .family:   familyTab(family: family)
         }
@@ -279,8 +285,27 @@ struct FamilyFeedView: View {
     // MARK: - Header
 
     private func headerBar(family: Family) -> some View {
-        HStack {
-            BrandRow(size: 20, animate: true)
+        HStack(spacing: 10) {
+            Button(action: { UIImpactFeedbackGenerator(style: .light).impactOccurred(); onBack() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        Circle().fill(Color.huddleGlassFill)
+                            .overlay(Circle().stroke(Color.huddleBorder, lineWidth: 1))
+                    )
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(family.name)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(Color.huddleTextPrimary)
+                    .tracking(-0.3)
+                    .lineLimit(1)
+                Text("\(family.members.count) member\(family.members.count == 1 ? "" : "s")")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.45))
+            }
             Spacer()
             HStack(spacing: 10) {
                 ZStack(alignment: .topTrailing) {
@@ -288,12 +313,6 @@ struct FamilyFeedView: View {
                     Circle().fill(Color(hex: "FF8A66")).frame(width: 8, height: 8)
                         .shadow(color: Color(hex: "FF8A66").opacity(0.8), radius: 4)
                         .offset(x: 2, y: 0)
-                }
-                if (authService.currentUser?.familyIds.count ?? 0) > 1 {
-                    GlassCircleButton(systemImage: "arrow.left.arrow.right", action: {
-                        viewModel.loadAvailableFamilies()
-                        showGroupSwitcher = true
-                    })
                 }
                 Button(action: { withAnimation(.easeInOut(duration: 0.18)) { selectedTab = .family } }) {
                     MemberAvatarView(
@@ -319,6 +338,7 @@ struct FamilyFeedView: View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
                 heroCard(family: family)
+                quickActionsRow
                 membersCard(family: family)
                 shoppingPreviewCard()
                 if !viewModel.pinnedMessages.isEmpty { pinnedCard() }
@@ -330,10 +350,49 @@ struct FamilyFeedView: View {
         }
     }
 
+    // MARK: - Quick Actions (Time Capsule + Ask Huddle)
+
+    private var quickActionsRow: some View {
+        HStack(spacing: 12) {
+            quickActionCard(title: "Time Capsule", subtitle: "Send to the future", icon: "hourglass", action: { showTimeCapsule = true })
+            quickActionCard(title: "Ask Huddle", subtitle: "Your AI helper", icon: "sparkles", action: { showAskHuddle = true })
+        }
+    }
+
+    private func quickActionCard(title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(LinearGradient(colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(Color(hex: "FF8A66").opacity(0.12)))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.system(size: 14, weight: .semibold)).foregroundColor(Color.huddleTextPrimary)
+                    Text(subtitle).font(.system(size: 11)).foregroundColor(Color.huddleTextPrimary.opacity(0.5)).lineLimit(1)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.huddleGlassFill)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.huddleBorder, lineWidth: 1))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Orbital Hero Card
 
     private func heroCard(family: Family) -> some View {
-        let unique = Array(Dictionary(grouping: family.members, by: { $0.id }).compactMap { $0.value.first }.prefix(3))
+        // Dedup by id while preserving Firestore array order (join order).
+        // Dictionary(grouping:) had non-deterministic iteration order, so members
+        // visibly reshuffled on every re-render (e.g. toggling light/dark mode).
+        let unique = Array(family.members.reduce(into: [Member]()) { acc, m in
+            if !acc.contains(where: { $0.id == m.id }) { acc.append(m) }
+        }.prefix(3))
         let lushColors: [LushColor] = [.rose, .amber, .plum]
         let angles: [Double] = [0, 120, 240]
         let floatAmounts: [CGFloat] = [4, 5, 3]
@@ -429,7 +488,10 @@ struct FamilyFeedView: View {
     // MARK: - Members Card
 
     private func membersCard(family: Family) -> some View {
-        let unique = Array(Dictionary(grouping: family.members, by: { $0.id }).compactMap { $0.value.first })
+        // Dedup by id preserving join order — see note at the avatar stack.
+        let unique = family.members.reduce(into: [Member]()) { acc, m in
+            if !acc.contains(where: { $0.id == m.id }) { acc.append(m) }
+        }
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
                 LushEyebrow(text: "Members")
@@ -715,31 +777,37 @@ struct FamilyFeedView: View {
                         .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
                         .padding(.leading, 6)
                 }
-                Text(message.content)
-                    .font(.system(size: 14))
-                    .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
-                    .padding(.horizontal, 12).padding(.vertical, 9)
-                    .background(
-                        isMe
-                            ? AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "F26A45"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom)
-                                .cornerRadius(16).shadow(color: Color(hex: "D8512B").opacity(0.35), radius: 6, x: 0, y: 3))
-                            : AnyView(Color.huddleGlassFill
-                                .cornerRadius(16)
-                                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.huddleBorder, lineWidth: 1)))
-                    )
-                    .contextMenu {
-                        Menu("React") {
-                            ForEach(["❤️","😂","👍","😮","😢","🎉"], id: \.self) { emoji in
-                                Button(action: { UIImpactFeedbackGenerator(style: .light).impactOccurred(); viewModel.toggleReaction(message: message, emoji: emoji) }) { Text(emoji) }
-                            }
-                        }
-                        Button(action: { UIImpactFeedbackGenerator(style: .light).impactOccurred(); viewModel.togglePinMessage(message) }) {
-                            Label(message.isPinned ? "Unpin" : "Pin", systemImage: message.isPinned ? "pin.slash" : "pin.fill")
-                        }
-                        if viewModel.isCurrentUserAdmin || message.senderID == authService.currentUser?.id {
-                            Button(role: .destructive, action: { messageToDelete = message }) { Label("Delete", systemImage: "trash") }
+                Group {
+                    if message.type == .photo {
+                        PhotoMessageView(message: message, isMe: isMe, viewModel: viewModel)
+                    } else {
+                        Text(message.content)
+                            .font(.system(size: 14))
+                            .foregroundColor(isMe ? .white : Color.huddleTextPrimary)
+                            .padding(.horizontal, 12).padding(.vertical, 9)
+                            .background(
+                                isMe
+                                    ? AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "F26A45"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom)
+                                        .cornerRadius(16).shadow(color: Color(hex: "D8512B").opacity(0.35), radius: 6, x: 0, y: 3))
+                                    : AnyView(Color.huddleGlassFill
+                                        .cornerRadius(16)
+                                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.huddleBorder, lineWidth: 1)))
+                            )
+                    }
+                }
+                .contextMenu {
+                    Menu("React") {
+                        ForEach(["❤️","😂","👍","😮","😢","🎉"], id: \.self) { emoji in
+                            Button(action: { UIImpactFeedbackGenerator(style: .light).impactOccurred(); viewModel.toggleReaction(message: message, emoji: emoji) }) { Text(emoji) }
                         }
                     }
+                    Button(action: { UIImpactFeedbackGenerator(style: .light).impactOccurred(); viewModel.togglePinMessage(message) }) {
+                        Label(message.isPinned ? "Unpin" : "Pin", systemImage: message.isPinned ? "pin.slash" : "pin.fill")
+                    }
+                    if viewModel.isCurrentUserAdmin || message.senderID == authService.currentUser?.id {
+                        Button(role: .destructive, action: { messageToDelete = message }) { Label("Delete", systemImage: "trash") }
+                    }
+                }
                 if let reactions = message.reactions, !reactions.isEmpty { reactionRow(reactions: reactions, message: message) }
                 Text(formatTime(message.createdAt))
                     .font(.system(size: 10)).foregroundColor(Color.huddleTextPrimary.opacity(0.35))
@@ -840,7 +908,10 @@ struct FamilyFeedView: View {
     // MARK: - Family Tab
 
     private func familyTab(family: Family) -> some View {
-        let unique = Array(Dictionary(grouping: family.members, by: { $0.id }).compactMap { $0.value.first })
+        // Dedup by id preserving join order — see note at the avatar stack.
+        let unique = family.members.reduce(into: [Member]()) { acc, m in
+            if !acc.contains(where: { $0.id == m.id }) { acc.append(m) }
+        }
         return ScrollView(showsIndicators: false) {
             VStack(spacing: 14) {
                 // Family code card
@@ -1065,14 +1136,72 @@ struct FamilyFeedView: View {
 
 private struct MessageInputBar: View {
     let onSend: (String) -> Void
+    let onSendPhoto: (UIImage, String) -> Void
     let onPingTap: () -> Void
 
     @State private var messageText = ""
     @State private var sendPulse = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var pendingImage: UIImage?
+    @State private var isPreparingPhoto = false
     @FocusState private var isFocused: Bool
 
+    private var canSend: Bool {
+        pendingImage != nil || !messageText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     var body: some View {
+        VStack(spacing: 0) {
+            if pendingImage != nil { pendingPhotoPreview }
+            inputControls
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(
+            LinearGradient(colors: [Color.huddleBackground.opacity(0.0), Color.huddleBackground.opacity(0.95)], startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+        )
+        .onChange(of: selectedPhotoItem) { _ in loadPickedPhoto() }
+    }
+
+    private var pendingPhotoPreview: some View {
+        HStack(spacing: 12) {
+            if let pendingImage {
+                Image(uiImage: pendingImage)
+                    .resizable().scaledToFill()
+                    .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.huddleBorder, lineWidth: 1))
+            }
+            Text("Photo ready · add a caption or send")
+                .font(.system(size: 12.5))
+                .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
+            Spacer()
+            Button { pendingImage = nil; selectedPhotoItem = nil } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 19))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
+            }
+        }
+        .padding(.bottom, 10)
+    }
+
+    private var inputControls: some View {
         HStack(spacing: 10) {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
+                Group {
+                    if isPreparingPhoto {
+                        ProgressView().tint(Color(hex: "FF8A66"))
+                    } else {
+                        Image(systemName: "photo.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(LinearGradient(colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
+                            .shadow(color: Color(hex: "FF8A66").opacity(0.5), radius: 4)
+                    }
+                }
+                .frame(width: 26, height: 26)
+            }
+            .disabled(isPreparingPhoto)
+
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onPingTap()
@@ -1084,7 +1213,7 @@ private struct MessageInputBar: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Send some love…", text: $messageText)
+                TextField(pendingImage == nil ? "Send some love…" : "Add a caption…", text: $messageText)
                     .font(.system(size: 14))
                     .foregroundColor(Color.huddleTextPrimary)
                     .focused($isFocused)
@@ -1108,19 +1237,19 @@ private struct MessageInputBar: View {
             Button(action: send) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 15))
-                    .foregroundColor(messageText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.huddleTextPrimary : .white)
+                    .foregroundColor(canSend ? .white : Color.huddleTextPrimary)
                     .frame(width: 42, height: 42)
                     .background(
-                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? AnyView(Color.huddleTextPrimary.opacity(0.08))
-                            : AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
+                        canSend
+                            ? AnyView(LinearGradient(colors: [Color(hex: "FFA078"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom))
+                            : AnyView(Color.huddleTextPrimary.opacity(0.08))
                     )
                     .clipShape(Circle())
-                    .shadow(color: messageText.trimmingCharacters(in: .whitespaces).isEmpty ? .clear : Color(hex: "D8512B").opacity(0.4), radius: 6, x: 0, y: 3)
+                    .shadow(color: canSend ? Color(hex: "D8512B").opacity(0.4) : .clear, radius: 6, x: 0, y: 3)
                     .scaleEffect(sendPulse ? 1.18 : 1.0)
                     .animation(.spring(response: 0.25, dampingFraction: 0.5), value: sendPulse)
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(!canSend)
             .onChange(of: messageText) { newValue in
                 let wasEmpty = messageText.trimmingCharacters(in: .whitespaces).isEmpty
                 let isNowNonEmpty = !newValue.trimmingCharacters(in: .whitespaces).isEmpty
@@ -1130,19 +1259,40 @@ private struct MessageInputBar: View {
                 }
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(
-            LinearGradient(colors: [Color.huddleBackground.opacity(0.0), Color.huddleBackground.opacity(0.95)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
-        )
     }
 
     private func send() {
+        if let image = pendingImage {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onSendPhoto(image, messageText.trimmingCharacters(in: .whitespaces))
+            pendingImage = nil
+            selectedPhotoItem = nil
+            messageText = ""
+            return
+        }
         let text = messageText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         onSend(text)
         messageText = ""
+    }
+
+    private func loadPickedPhoto() {
+        guard let item = selectedPhotoItem else { return }
+        isPreparingPhoto = true
+        Task {
+            let data = try? await item.loadTransferable(type: Data.self)
+            let image = data.flatMap { UIImage(data: $0) }
+            await MainActor.run {
+                isPreparingPhoto = false
+                if let image {
+                    pendingImage = image
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } else {
+                    selectedPhotoItem = nil
+                }
+            }
+        }
     }
 }
 
@@ -1184,8 +1334,11 @@ private struct LiveTickerView: View {
     FamilyFeedView(
         familyService: container.familyService,
         messageService: container.messageService,
+        eventService: container.eventService,
+        capsuleService: container.capsuleService,
         authService: auth,
-        openToShopping: .constant(false)
+        openToShopping: .constant(false),
+        onBack: {}
     )
     .environmentObject(auth)
 }

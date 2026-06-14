@@ -18,12 +18,17 @@
       @Published var messages: [HuddleMessage] = []
       @Published var unreadCount: Int = 0
       private var messageListener: ListenerRegistration?
+      private var familyListener: ListenerRegistration?
 
       @Published var shoppingItems: [HuddleMessage] = []
       private var shoppingListener: ListenerRegistration?
 
       @Published var pinnedMessages: [HuddleMessage] = []
       @Published var availableFamilies: [Family] = []
+      // Ids of the user's OTHER groups (not the active one) that have unread messages.
+      @Published var unreadGroupIds: Set<String> = []
+      private var groupListeners: [ListenerRegistration] = []
+      private var groupCache: [String: Family] = [:]
 
       private let familyService: FamilyService
       private let authService: AuthService
@@ -41,7 +46,11 @@
               return
           }
 
-          familyService.fetchFamily(familyId: familyId) { [weak self] result in
+          // Live listener (not a one-time fetch) so the E2E key handshake
+          // converges automatically: a new joiner is seen instantly and gets
+          // the key distributed, and the joiner derives it the moment it lands.
+          familyListener?.remove()
+          familyListener = familyService.listenToFamily(familyId: familyId) { [weak self] result in
               guard let self else { return }
               switch result {
               case .success(var fetchedFamily):
@@ -55,11 +64,28 @@
                   }
                   self.family = fetchedFamily
                   self.isLoading = false
-                  self.setupEncryption(family: fetchedFamily)
+                  self.setupEncryption(family: fetchedFamily) { [weak self] in
+                      // Key just arrived — re-decrypt anything already on screen.
+                      self?.redecryptLoadedContent()
+                  }
               case .failure:
                   self.isLoading = false
               }
           }
+      }
+
+      /// Re-runs decryption over already-loaded content. Called when the group
+      /// key arrives after messages were first rendered as ciphertext.
+      private func redecryptLoadedContent() {
+          guard let familyId = authService.currentUser?.currentFamilyId else { return }
+          let decryptedMessages = messageService.redecrypt(messages, familyId: familyId)
+          let decryptedShopping = messageService.redecrypt(shoppingItems, familyId: familyId)
+          let decryptedPinned = messageService.redecrypt(pinnedMessages, familyId: familyId)
+          messages = decryptedMessages
+          shoppingItems = decryptedShopping
+          pinnedMessages = decryptedPinned
+          saveWidgetShoppingItems(decryptedShopping)
+          saveWidgetPinnedMessages(decryptedPinned)
       }
 
       func loadMessages() {
@@ -76,7 +102,7 @@
                       .filter { $0.type == .ping }
                       .suffix(1)
                       .map { SharedDataManager.WidgetPing(content: $0.content, senderName: $0.senderName ?? "Unknown", sentAt: $0.createdAt) }
-                  SharedDataManager.savePings(Array(widgetPings))
+                  SharedDataManager.savePings(Array(widgetPings), familyId: familyId)
               case .failure(_):
                   break
               }
@@ -88,11 +114,13 @@
               return
           }
 
-          messageService.fetchShoppingItems(familyId: familyId) { result in
+          // Live listener so shopping changes on another device sync here.
+          shoppingListener?.remove()
+          shoppingListener = messageService.listenToShoppingItems(familyId: familyId) { [weak self] result in
               switch result {
               case .success(let items):
-                    self.shoppingItems = items
-                    self.saveWidgetShoppingItems(items)
+                    self?.shoppingItems = items
+                    self?.saveWidgetShoppingItems(items)
               case .failure(_):
                   break
               }
@@ -132,6 +160,31 @@
               case .failure(_):
                   break
               }
+          }
+      }
+
+      func sendPhoto(image: UIImage, caption: String) {
+          guard let familyId = authService.currentUser?.currentFamilyId,
+                let userId = authService.currentUser?.id,
+                let userName = authService.currentUser?.displayName else { return }
+
+          messageService.sendPhotoMessage(
+              familyId: familyId,
+              image: image,
+              caption: caption,
+              senderId: userId,
+              senderName: userName
+          ) { _ in
+              // The Firestore listener delivers the authoritative message; the
+              // sender's plaintext image is already warm in PhotoCache from upload.
+          }
+      }
+
+      func loadPhoto(for message: HuddleMessage, completion: @escaping (UIImage?) -> Void) {
+          guard let familyId = authService.currentUser?.currentFamilyId,
+                let path = message.photoURL else { completion(nil); return }
+          messageService.loadPhoto(familyId: familyId, path: path) { result in
+              completion(try? result.get())
           }
       }
 
@@ -177,7 +230,13 @@
               pinnedMessages.removeAll { $0.id == messageId }
           }
 
-          messageService.togglePin(familyId: familyId, messageId: messageId, isPinned: newPinStatus) { [weak self] result in
+          messageService.togglePin(
+              familyId: familyId,
+              messageId: messageId,
+              isPinned: newPinStatus,
+              pinnedBy: authService.currentUser?.id,
+              pinnedByName: authService.currentUser?.displayName
+          ) { [weak self] result in
               if case .failure = result {
                   // Revert on failure
                   if let idx = self?.messages.firstIndex(where: { $0.id == messageId }) {
@@ -232,6 +291,11 @@
           messages.removeAll { $0.id == messageId }
           pinnedMessages.removeAll { $0.id == messageId }
 
+          // Photo messages also own a Storage blob — clean it up.
+          if message.type == .photo, let path = message.photoURL {
+              messageService.deletePhotoBlob(path: path)
+          }
+
           messageService.deleteMessage(familyId: familyId, messageId: messageId) { [weak self] result in
               if case .failure = result {
                   // Revert on failure by reloading
@@ -241,26 +305,39 @@
           }
       }               
 
-      func leaveGroup() {
+      func leaveGroup(onComplete: (() -> Void)? = nil) {
           guard let userId = authService.currentUser?.id,
                 let familyId = authService.currentUser?.currentFamilyId,
-                let displayName = authService.currentUser?.displayName else { return }
+                let displayName = authService.currentUser?.displayName else { onComplete?(); return }
 
+          let isLastMember = (family?.members.count ?? 0) <= 1
+
+          // Drop this group's cached widget payload from the App Group.
+          SharedDataManager.clearGroup(familyId)
+
+          if isLastMember {
+              // Last one out — delete the whole group from the backend so it
+              // can't be re-joined by code: photos, messages, then the doc.
+              messageService.deleteAllPhotos(familyId: familyId)
+              familyService.deleteFamily(familyId: familyId) { [weak self] _ in
+                  self?.authService.removeFamily(familyId: familyId) { onComplete?() }
+              }
+              return
+          }
+
+          // Otherwise just remove myself and announce it.
           let group = DispatchGroup()
-
           group.enter()
           messageService.sendSystemMessage(familyId: familyId, content: "\(displayName) left the group") { _ in
               group.leave()
           }
-
           group.enter()
           familyService.leaveFamily(userId: userId, familyId: familyId) { _ in
               group.leave()
           }
-
           group.notify(queue: .main) {
               // Keeps identity — no signOut(). removeFamily switches currentFamilyId or clears it.
-              self.authService.removeFamily(familyId: familyId) { }
+              self.authService.removeFamily(familyId: familyId) { onComplete?() }
           }
       }
 
@@ -273,33 +350,77 @@
               self?.loadMessages()
               self?.loadShoppingItems()
               self?.loadPinnedMessages()
+              self?.listenToAllGroups()
           }
       }
 
       func loadAvailableFamilies() {
+          // Kept for call sites; the live listener is the real source of truth.
+          listenToAllGroups()
+      }
+
+      /// Attaches a live listener to every group the user belongs to, so the
+      /// switcher list and per-group unread badges stay current in real time.
+      func listenToAllGroups() {
+          groupListeners.forEach { $0.remove() }
+          groupListeners = []
           let ids = authService.currentUser?.familyIds ?? []
-          guard ids.count > 1 else { availableFamilies = []; return }
-          availableFamilies = []
-          var loaded: [Family] = []
-          let group = DispatchGroup()
           for id in ids {
-              group.enter()
-              familyService.fetchFamily(familyId: id) { result in
-                  if case .success(let f) = result { loaded.append(f) }
-                  group.leave()
+              let listener = familyService.listenToFamily(familyId: id) { [weak self] result in
+                  guard let self, case .success(let fam) = result, let fid = fam.id else { return }
+                  self.groupCache[fid] = fam
+                  self.recomputeGroups()
               }
+              groupListeners.append(listener)
           }
-          group.notify(queue: .main) { self.availableFamilies = loaded }
+      }
+
+      private func recomputeGroups() {
+          let ids = authService.currentUser?.familyIds ?? []
+          availableFamilies = ids.compactMap { groupCache[$0] }
+          let current = authService.currentUser?.currentFamilyId
+          unreadGroupIds = Set(
+              availableFamilies
+                  .filter { $0.id != current && isGroupUnread($0) }
+                  .compactMap { $0.id }
+          )
+      }
+
+      /// A group is unread if its newest message is newer than the last time
+      /// this device opened that group's chat.
+      func isGroupUnread(_ family: Family) -> Bool {
+          GroupReadTracker.isUnread(family)
+      }
+
+      /// Re-attaches all per-group state after the active group changes
+      /// (e.g. after creating or joining a new group from the switcher).
+      func reloadActiveGroup() {
+          isLoading = true
+          messageListener?.remove()
+          shoppingListener?.remove()
+          familyListener?.remove()
+          messages = []
+          shoppingItems = []
+          pinnedMessages = []
+          loadFamily()
+          loadMessages()
+          loadShoppingItems()
+          loadPinnedMessages()
+          listenToAllGroups()
       }
 
       func markMessagesAsRead() {
-          UserDefaults.standard.set(Date(), forKey: "lastMessagesViewDate")
           unreadCount = 0
+          guard let fid = authService.currentUser?.currentFamilyId else { return }
+          GroupReadTracker.markRead(fid)
+          // Active group can't be "unread"; refresh other groups' badges.
+          recomputeGroups()
       }
 
       private func updateUnreadCount() {
-          let lastRead = UserDefaults.standard.object(forKey: "lastMessagesViewDate") as? Date ?? .distantPast
-          guard let uid = authService.currentUser?.id else { return }
+          guard let uid = authService.currentUser?.id,
+                let fid = authService.currentUser?.currentFamilyId else { return }
+          let lastRead = GroupReadTracker.lastRead(fid)
           unreadCount = messages.filter {
               $0.senderID != uid && $0.type != .system && $0.createdAt > lastRead
           }.count
@@ -324,19 +445,21 @@
           messageService.toggleReaction(familyId: familyId, messageId: messageId, emoji: emoji, userId: userId, add: !alreadyReacted) { _ in }
       }
 
-      func setupEncryption(family: Family) {
+      func setupEncryption(family: Family, onKeyReady: (() -> Void)? = nil) {
           guard let uid = authService.currentUser?.id,
                 let familyId = family.id else { return }
           let groupKeys = family.encryptedGroupKeys ?? [:]
           let members = family.members
 
           DispatchQueue.global(qos: .userInitiated).async {
+              var didDeriveKey = false
               if EncryptionService.loadGroupKey(familyId: familyId) == nil,
                  let encryptedForMe = groupKeys[uid],
                  let privateKey = try? EncryptionService.loadPrivateKey() {
                   let candidateKeys = members.compactMap { $0.publicKey }
                   if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
                       try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
+                      didDeriveKey = true
                   }
               }
 
@@ -353,27 +476,38 @@
                       encryptedKey: encrypted
                   )
               }
+
+              if didDeriveKey {
+                  DispatchQueue.main.async { onKeyReady?() }
+              }
           }
       }
 
       func cleanup() {
           messageListener?.remove()
           shoppingListener?.remove()
+          familyListener?.remove()
+          groupListeners.forEach { $0.remove() }
+          groupListeners = []
       }
       private func saveWidgetPinnedMessages(_ messages: [HuddleMessage]) {
-            let widgetMessages = messages.map { message in
-                SharedDataManager.WidgetPinnedMessage(
-                    text: message.content,
+            guard let familyId = authService.currentUser?.currentFamilyId else { return }
+            let widgetMessages = messages.map { message -> SharedDataManager.WidgetPinnedMessage in
+                let text = message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                let display = text.isEmpty && message.type == .photo ? "📷 Photo" : message.content
+                return SharedDataManager.WidgetPinnedMessage(
+                    text: display,
                     senderName: message.senderName ?? "Unknown"
                 )
             }
-            SharedDataManager.savePinnedMessages(widgetMessages)
+            SharedDataManager.savePinnedMessages(widgetMessages, familyId: familyId)
         }
-                                                                                                             
+
         private func saveWidgetShoppingItems(_ items: [HuddleMessage]) {
+            guard let familyId = authService.currentUser?.currentFamilyId else { return }
             let widgetItems = items.map { item in
                 SharedDataManager.WidgetShoppingItem(text: item.content)
             }
-            SharedDataManager.saveShoppingItems(widgetItems)
-        }                             
+            SharedDataManager.saveShoppingItems(widgetItems, familyId: familyId)
+        }
   }

@@ -88,6 +88,23 @@ enum EncryptionService {
         return plaintext
     }
 
+    // MARK: - Binary Encryption (photos / attachments)
+    // Returns the raw combined GCM box (nonce + ciphertext + tag) as Data,
+    // ready to upload to Storage. Unlike the String variants this skips
+    // base64 — the blob is opaque bytes either way, so we avoid the 33% inflation.
+
+    static func encryptData(_ plaintext: Data, groupKey: SymmetricKey) throws -> Data {
+        let sealed = try AES.GCM.seal(plaintext, using: groupKey)
+        guard let combined = sealed.combined else { throw EncryptionError.decryptionFailed }
+        return combined
+    }
+
+    static func decryptData(_ cipher: Data, groupKey: SymmetricKey) -> Data? {
+        guard let sealedBox = try? AES.GCM.SealedBox(combined: cipher),
+              let plainData = try? AES.GCM.open(sealedBox, using: groupKey) else { return nil }
+        return plainData
+    }
+
     // MARK: - Keychain
 
     private static func saveToKeychain(key: String, data: Data) throws {

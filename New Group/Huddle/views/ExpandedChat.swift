@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ExpandedChat: View {
     @ObservedObject var viewModel: FamilyFeedViewModel
@@ -8,6 +9,9 @@ struct ExpandedChat: View {
     @State private var messageText = ""
     @State private var reactingTo: HuddleMessage?
     @State private var showPingTray = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var pendingImage: UIImage?
+    @State private var isPreparingPhoto = false
     @FocusState private var isInputFocused: Bool
 
     private let pingOptions = ["I'm home", "On my way", "Leaving school", "Running late", "At the store", "Be there soon"]
@@ -97,6 +101,8 @@ struct ExpandedChat: View {
                                 systemRow(message).padding(.vertical, 2)
                             } else if message.type == .ping {
                                 pingRow(message).padding(.vertical, 5)
+                            } else if message.type == .photo {
+                                photoRow(message, firstInGroup: isFirstInGroup(at: index)).padding(.vertical, 2)
                             } else {
                                 chatRow(message, firstInGroup: isFirstInGroup(at: index)).padding(.vertical, 2)
                             }
@@ -254,6 +260,45 @@ struct ExpandedChat: View {
         }
     }
 
+    private func photoRow(_ message: HuddleMessage, firstInGroup: Bool) -> some View {
+        let isMe = message.senderID == authService.currentUser?.id
+        let senderPhoto = viewModel.family?.members.first(where: { $0.id == message.senderID })?.photoBase64
+
+        return HStack(alignment: .bottom, spacing: 8) {
+            if isMe { Spacer(minLength: 60) }
+
+            if !isMe {
+                if firstInGroup { MemberAvatarView(name: message.senderName, photoBase64: senderPhoto, size: 28) }
+                else { Color.clear.frame(width: 28) }
+            }
+
+            VStack(alignment: isMe ? .trailing : .leading, spacing: 4) {
+                if !isMe && firstInGroup {
+                    Text(message.senderName)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
+                        .padding(.leading, 4)
+                }
+
+                PhotoMessageView(message: message, isMe: isMe, viewModel: viewModel)
+                    .onLongPressGesture(minimumDuration: 0.4) {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { reactingTo = message }
+                    }
+
+                if let reactions = message.reactions, !reactions.isEmpty {
+                    reactionRow(reactions: reactions, message: message)
+                }
+
+                Text(formatTime(message.createdAt))
+                    .font(.system(size: 10))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.3))
+            }
+
+            if !isMe { Spacer(minLength: 60) }
+        }
+    }
+
     // MARK: - Reaction row
 
     private func reactionRow(reactions: [String: [String]], message: HuddleMessage) -> some View {
@@ -330,7 +375,70 @@ struct ExpandedChat: View {
     // MARK: - Input bar
 
     private var inputBar: some View {
+        VStack(spacing: 0) {
+            if pendingImage != nil { pendingPhotoPreview }
+            inputControls
+        }
+        .background(
+            Color.huddleBackground
+                .overlay(
+                    Rectangle()
+                        .fill(Color.huddleBorder)
+                        .frame(height: 1),
+                    alignment: .top
+                )
+        )
+        .onChange(of: selectedPhotoItem) { _ in loadPickedPhoto() }
+    }
+
+    private var pendingPhotoPreview: some View {
+        HStack(spacing: 12) {
+            if let pendingImage {
+                Image(uiImage: pendingImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.huddleBorder, lineWidth: 1))
+            }
+            Text("Photo ready · add a caption or send")
+                .font(.system(size: 13))
+                .foregroundColor(Color.huddleTextPrimary.opacity(0.55))
+            Spacer()
+            Button {
+                pendingImage = nil
+                selectedPhotoItem = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Color.huddleTextPrimary.opacity(0.4))
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 10)
+    }
+
+    private var inputControls: some View {
         HStack(spacing: 10) {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
+                Group {
+                    if isPreparingPhoto {
+                        ProgressView().tint(Color(hex: "FF8A66"))
+                    } else {
+                        Image(systemName: "photo.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")],
+                                    startPoint: .top, endPoint: .bottom
+                                )
+                            )
+                    }
+                }
+                .frame(width: 26, height: 26)
+            }
+            .disabled(isPreparingPhoto)
+
             Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 showPingTray = true
@@ -346,7 +454,7 @@ struct ExpandedChat: View {
             }
 
             HStack(spacing: 8) {
-                TextField("Message your family...", text: $messageText)
+                TextField(pendingImage == nil ? "Message your family..." : "Add a caption...", text: $messageText)
                     .font(.system(size: 15))
                     .foregroundColor(Color.huddleTextPrimary)
                     .focused($isInputFocused)
@@ -375,12 +483,11 @@ struct ExpandedChat: View {
             Button(action: sendMessage) {
                 Image(systemName: "paperplane.fill")
                     .font(.system(size: 14))
-                    .foregroundColor(messageText.trimmingCharacters(in: .whitespaces).isEmpty ? Color.huddleTextPrimary : .white)
+                    .foregroundColor(canSend ? .white : Color.huddleTextPrimary)
                     .frame(width: 42, height: 42)
                     .background(
-                        messageText.trimmingCharacters(in: .whitespaces).isEmpty
-                            ? AnyView(Circle().fill(Color.huddleGlassFill))
-                            : AnyView(
+                        canSend
+                            ? AnyView(
                                 Circle().fill(
                                     LinearGradient(
                                         colors: [Color(hex: "FFA078"), Color(hex: "D8512B")],
@@ -389,21 +496,17 @@ struct ExpandedChat: View {
                                 )
                                 .shadow(color: Color(hex: "D8512B").opacity(0.4), radius: 6, x: 0, y: 2)
                             )
+                            : AnyView(Circle().fill(Color.huddleGlassFill))
                     )
             }
-            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(!canSend)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(
-            Color.huddleBackground
-                .overlay(
-                    Rectangle()
-                        .fill(Color.huddleBorder)
-                        .frame(height: 1),
-                    alignment: .top
-                )
-        )
+    }
+
+    private var canSend: Bool {
+        pendingImage != nil || !messageText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     // MARK: - Ping tray
@@ -466,10 +569,38 @@ struct ExpandedChat: View {
 
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespaces)
+
+        if let image = pendingImage {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            viewModel.sendPhoto(image: image, caption: text)
+            pendingImage = nil
+            selectedPhotoItem = nil
+            messageText = ""
+            return
+        }
+
         guard !text.isEmpty else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         viewModel.sendMessage(content: text)
         messageText = ""
+    }
+
+    private func loadPickedPhoto() {
+        guard let item = selectedPhotoItem else { return }
+        isPreparingPhoto = true
+        Task {
+            let data = try? await item.loadTransferable(type: Data.self)
+            let image = data.flatMap { UIImage(data: $0) }
+            await MainActor.run {
+                isPreparingPhoto = false
+                if let image {
+                    pendingImage = image
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } else {
+                    selectedPhotoItem = nil
+                }
+            }
+        }
     }
 
     private func formatTime(_ date: Date) -> String {

@@ -2,73 +2,131 @@
 //  HuddleWidget.swift
 //  HuddleWidget
 //
+//  Configurable per-group widget: each instance shows one group the user picks.
+//
 
 import WidgetKit
 import SwiftUI
+import AppIntents
 
-struct Provider: TimelineProvider {
+// MARK: - Configuration intent (group picker)
+
+struct GroupEntity: AppEntity {
+    let id: String
+    let name: String
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Group"
+    var displayRepresentation: DisplayRepresentation { DisplayRepresentation(title: "\(name)") }
+    static var defaultQuery = GroupQuery()
+}
+
+struct GroupQuery: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [GroupEntity] {
+        SharedDataManager.loadGroups()
+            .filter { identifiers.contains($0.id) }
+            .map { GroupEntity(id: $0.id, name: $0.name) }
+    }
+
+    func suggestedEntities() async throws -> [GroupEntity] {
+        SharedDataManager.loadGroups().map { GroupEntity(id: $0.id, name: $0.name) }
+    }
+
+    func defaultResult() async -> GroupEntity? {
+        SharedDataManager.loadGroups().first.map { GroupEntity(id: $0.id, name: $0.name) }
+    }
+}
+
+struct SelectGroupIntent: WidgetConfigurationIntent {
+    static var title: LocalizedStringResource = "Choose Group"
+    static var description = IntentDescription("Pick which group this widget shows.")
+
+    @Parameter(title: "Group")
+    var group: GroupEntity?
+
+    init() {}
+    init(group: GroupEntity?) { self.group = group }
+}
+
+// MARK: - Timeline
+
+struct HuddleEntry: TimelineEntry {
+    let date: Date
+    let groupId: String?
+    let groupName: String
+    let pinnedMessages: [SharedDataManager.WidgetPinnedMessage]
+    let shoppingItems: [SharedDataManager.WidgetShoppingItem]
+    let pings: [SharedDataManager.WidgetPing]
+}
+
+struct Provider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> HuddleEntry {
         HuddleEntry(
             date: Date(),
-            pinnedMessages: [
-                SharedDataManager.WidgetPinnedMessage(text: "Remember to call grandma!", senderName: "Mom")
-            ],
-            shoppingItems: [
-                SharedDataManager.WidgetShoppingItem(text: "Milk"),
-                SharedDataManager.WidgetShoppingItem(text: "Bread")
-            ],
-            pings: [
-                SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date())
-            ]
+            groupId: nil,
+            groupName: "Family",
+            pinnedMessages: [SharedDataManager.WidgetPinnedMessage(text: "Remember to call grandma!", senderName: "Mom")],
+            shoppingItems: [SharedDataManager.WidgetShoppingItem(text: "Milk"), SharedDataManager.WidgetShoppingItem(text: "Bread")],
+            pings: [SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date())]
         )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (HuddleEntry) -> ()) {
-        let entry = HuddleEntry(
-            date: Date(),
-            pinnedMessages: SharedDataManager.loadPinnedMessages(),
-            shoppingItems: SharedDataManager.loadShoppingItems(),
-            pings: SharedDataManager.loadPings()
-        )
-        completion(entry)
+    func snapshot(for configuration: SelectGroupIntent, in context: Context) async -> HuddleEntry {
+        entry(for: configuration)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
-        let pings = SharedDataManager.loadPings()
-        let entry = HuddleEntry(
-            date: Date(),
-            pinnedMessages: SharedDataManager.loadPinnedMessages(),
-            shoppingItems: SharedDataManager.loadShoppingItems(),
-            pings: pings
-        )
+    func timeline(for configuration: SelectGroupIntent, in context: Context) async -> Timeline<HuddleEntry> {
+        let current = entry(for: configuration)
         let refreshDate: Date
-        if let ping = pings.first {
+        if let ping = current.pings.first {
             let expiry = ping.sentAt.addingTimeInterval(86400)
             let fifteenMin = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
             refreshDate = min(expiry, fifteenMin)
         } else {
             refreshDate = Calendar.current.date(byAdding: .minute, value: 15, to: Date())!
         }
-        completion(Timeline(entries: [entry], policy: .after(refreshDate)))
+        return Timeline(entries: [current], policy: .after(refreshDate))
     }
-}
 
-struct HuddleEntry: TimelineEntry {
-    let date: Date
-    let pinnedMessages: [SharedDataManager.WidgetPinnedMessage]
-    let shoppingItems: [SharedDataManager.WidgetShoppingItem]
-    let pings: [SharedDataManager.WidgetPing]
+    /// Resolves the picked group (or the first available), then loads its data.
+    private func entry(for configuration: SelectGroupIntent) -> HuddleEntry {
+        let groups = SharedDataManager.loadGroups()
+        let selected = configuration.group ?? groups.first.map { GroupEntity(id: $0.id, name: $0.name) }
+
+        guard let selected else {
+            return HuddleEntry(date: Date(), groupId: nil, groupName: "Huddle",
+                               pinnedMessages: [], shoppingItems: [], pings: [])
+        }
+        // Prefer the live name from the index in case the group was renamed.
+        let name = SharedDataManager.groupName(selected.id) ?? selected.name
+        return HuddleEntry(
+            date: Date(),
+            groupId: selected.id,
+            groupName: name,
+            pinnedMessages: SharedDataManager.loadPinnedMessages(familyId: selected.id),
+            shoppingItems: SharedDataManager.loadShoppingItems(familyId: selected.id),
+            pings: SharedDataManager.loadPings(familyId: selected.id)
+        )
+    }
 }
 
 // MARK: - Widget View
 
 struct HuddleWidgetEntryView: View {
-    var entry: Provider.Entry
+    var entry: HuddleEntry
     @Environment(\.widgetFamily) var widgetFamily
+
+    private var openURL: URL {
+        if let id = entry.groupId { return URL(string: "huddle://group/\(id)")! }
+        return URL(string: "huddle://open")!
+    }
+
+    private var shoppingURL: URL {
+        if let id = entry.groupId { return URL(string: "huddle://group/\(id)/shopping")! }
+        return URL(string: "huddle://shopping")!
+    }
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Ambient coral glow
             Circle()
                 .fill(Color(hex: "FF8A66").opacity(0.18))
                 .frame(width: 90, height: 90)
@@ -94,7 +152,7 @@ struct HuddleWidgetEntryView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .widgetURL(URL(string: "huddle://open"))
+        .widgetURL(openURL)
     }
 
     // MARK: - Brand
@@ -104,15 +162,13 @@ struct HuddleWidgetEntryView: View {
             Image(systemName: "heart.fill")
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")],
-                        startPoint: .top, endPoint: .bottom
-                    )
+                    LinearGradient(colors: [Color(hex: "FF8A66"), Color(hex: "D8512B")], startPoint: .top, endPoint: .bottom)
                 )
-            Text("Huddle")
+            Text(entry.groupName)
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(.white)
                 .tracking(-0.3)
+                .lineLimit(1)
         }
     }
 
@@ -159,9 +215,7 @@ struct HuddleWidgetEntryView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(entry.shoppingItems.prefix(3), id: \.text) { item in
                         HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color(hex: "FF8A66").opacity(0.5))
-                                .frame(width: 4, height: 4)
+                            Circle().fill(Color(hex: "FF8A66").opacity(0.5)).frame(width: 4, height: 4)
                             Text(item.text)
                                 .font(.system(size: 11))
                                 .foregroundColor(Color(hex: "F5E9E2"))
@@ -170,7 +224,7 @@ struct HuddleWidgetEntryView: View {
                     }
                 }
             } else {
-                Text("Your family is quiet…")
+                Text("All quiet here…")
                     .font(.system(size: 11))
                     .foregroundColor(Color(hex: "F5E9E2").opacity(0.35))
                     .padding(.top, 4)
@@ -182,8 +236,7 @@ struct HuddleWidgetEntryView: View {
 
     private var mediumContent: some View {
         HStack(alignment: .top, spacing: 10) {
-            // Left: ping or pinned
-            Link(destination: URL(string: "huddle://open")!) {
+            Link(destination: openURL) {
                 VStack(alignment: .leading, spacing: 6) {
                     if let ping = entry.pings.first, Date().timeIntervalSince(ping.sentAt) < 86400 {
                         sectionLabel("PING", icon: "mappin.circle.fill")
@@ -233,14 +286,12 @@ struct HuddleWidgetEntryView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Divider
             Rectangle()
                 .fill(Color(hex: "FFC8AA").opacity(0.10))
                 .frame(width: 1)
                 .padding(.vertical, 2)
 
-            // Right: shopping
-            Link(destination: URL(string: "huddle://shopping")!) {
+            Link(destination: shoppingURL) {
                 VStack(alignment: .leading, spacing: 6) {
                     sectionLabel("SHOPPING", icon: "cart.fill")
                     if entry.shoppingItems.isEmpty {
@@ -253,9 +304,7 @@ struct HuddleWidgetEntryView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(entry.shoppingItems.prefix(4), id: \.text) { item in
                                 HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(Color(hex: "FF8A66").opacity(0.5))
-                                        .frame(width: 4, height: 4)
+                                    Circle().fill(Color(hex: "FF8A66").opacity(0.5)).frame(width: 4, height: 4)
                                     Text(item.text)
                                         .font(.system(size: 11))
                                         .foregroundColor(Color(hex: "F5E9E2"))
@@ -294,10 +343,7 @@ struct HuddleWidgetEntryView: View {
             .background(
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color(hex: "281A16").opacity(0.65))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(hex: "FFC8AA").opacity(0.10), lineWidth: 1)
-                    )
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "FFC8AA").opacity(0.10), lineWidth: 1))
             )
     }
 
@@ -310,10 +356,7 @@ struct HuddleWidgetEntryView: View {
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(hex: "281A16").opacity(0.65))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(hex: "FFC8AA").opacity(0.10), lineWidth: 1)
-                    )
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "FFC8AA").opacity(0.10), lineWidth: 1))
             )
     }
 }
@@ -324,18 +367,12 @@ struct HuddleWidget: Widget {
     let kind: String = "HuddleWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            if #available(iOS 17.0, *) {
-                HuddleWidgetEntryView(entry: entry)
-                    .containerBackground(Color(hex: "0E0809"), for: .widget)
-            } else {
-                HuddleWidgetEntryView(entry: entry)
-                    .padding()
-                    .background(Color(hex: "0E0809"))
-            }
+        AppIntentConfiguration(kind: kind, intent: SelectGroupIntent.self, provider: Provider()) { entry in
+            HuddleWidgetEntryView(entry: entry)
+                .containerBackground(Color(hex: "0E0809"), for: .widget)
         }
         .configurationDisplayName("Huddle")
-        .description("See pinned messages and shopping list")
+        .description("See a group's pins and shopping list. Long-press to pick the group.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -346,17 +383,10 @@ struct HuddleWidget: Widget {
     HuddleWidget()
 } timeline: {
     HuddleEntry(
-        date: .now,
-        pinnedMessages: [
-            SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom")
-        ],
-        shoppingItems: [
-            SharedDataManager.WidgetShoppingItem(text: "Milk"),
-            SharedDataManager.WidgetShoppingItem(text: "Bread")
-        ],
-        pings: [
-            SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date().addingTimeInterval(-300))
-        ]
+        date: .now, groupId: "preview", groupName: "Cousins",
+        pinnedMessages: [SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom")],
+        shoppingItems: [SharedDataManager.WidgetShoppingItem(text: "Milk"), SharedDataManager.WidgetShoppingItem(text: "Bread")],
+        pings: [SharedDataManager.WidgetPing(content: "🏠 I'm home", senderName: "Jake", sentAt: Date().addingTimeInterval(-300))]
     )
 }
 
@@ -364,7 +394,7 @@ struct HuddleWidget: Widget {
     HuddleWidget()
 } timeline: {
     HuddleEntry(
-        date: .now,
+        date: .now, groupId: "preview", groupName: "Home",
         pinnedMessages: [
             SharedDataManager.WidgetPinnedMessage(text: "Pick up kids at 3pm", senderName: "Mom"),
             SharedDataManager.WidgetPinnedMessage(text: "Dentist Monday 10am", senderName: "Mom")
@@ -374,8 +404,6 @@ struct HuddleWidget: Widget {
             SharedDataManager.WidgetShoppingItem(text: "Bread"),
             SharedDataManager.WidgetShoppingItem(text: "Eggs")
         ],
-        pings: [
-            SharedDataManager.WidgetPing(content: "📍 At the gym", senderName: "Mom", sentAt: Date().addingTimeInterval(-240))
-        ]
+        pings: [SharedDataManager.WidgetPing(content: "📍 At the gym", senderName: "Mom", sentAt: Date().addingTimeInterval(-240))]
     )
 }

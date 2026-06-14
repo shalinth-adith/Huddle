@@ -19,8 +19,11 @@ struct Family: Codable , Identifiable {
     var memberIds: [String]? = nil
     var adminId: String?
     var encryptedGroupKeys: [String: String]?
+    // Timestamp of the most recent chat/photo/ping message. Compared against a
+    // per-family local "last read" to show unread badges for non-active groups.
+    var lastMessageAt: Date? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, name, code, createdAt, members, memberIds, adminId, encryptedGroupKeys
+        case id, name, code, createdAt, members, memberIds, adminId, encryptedGroupKeys, lastMessageAt
     }
 }

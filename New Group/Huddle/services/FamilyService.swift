@@ -218,6 +218,52 @@ error in
         db.collection("families").document(familyId)
             .updateData(["encryptedGroupKeys.\(userId)": encryptedKey])
     }
+
+    /// Fully deletes an abandoned group: first the messages subcollection (must
+    /// happen while the family doc still lists us as a member, so the message
+    /// rules pass), then the family document itself.
+    func deleteFamily(familyId: String, completion: @escaping (Error?) -> Void) {
+        let famRef = db.collection("families").document(familyId)
+        deleteCollection(famRef.collection("messages"), batchSize: 300) { [weak self] error in
+            if let error { completion(error); return }
+            _ = self
+            famRef.delete { deleteError in completion(deleteError) }
+        }
+    }
+
+    private func deleteCollection(_ ref: CollectionReference, batchSize: Int, completion: @escaping (Error?) -> Void) {
+        ref.limit(to: batchSize).getDocuments { [weak self] snapshot, error in
+            guard let self else { completion(nil); return }
+            if let error { completion(error); return }
+            guard let docs = snapshot?.documents, !docs.isEmpty else { completion(nil); return }
+            let batch = self.db.batch()
+            docs.forEach { batch.deleteDocument($0.reference) }
+            batch.commit { commitError in
+                if let commitError { completion(commitError); return }
+                // Recurse until the collection is empty.
+                self.deleteCollection(ref, batchSize: batchSize, completion: completion)
+            }
+        }
+    }
+
+    /// Real-time listener on the family document. Unlike `fetchFamily` (a
+    /// one-time read), this keeps the local family in sync so the E2E group-key
+    /// handshake converges live: the moment a new member joins, an existing
+    /// member sees it and distributes the key; the moment `encryptedGroupKeys`
+    /// gains the local user's entry, that user derives the key — no app reopen.
+    func listenToFamily(familyId: String, completion: @escaping (Result<Family, Error>) -> Void) -> ListenerRegistration {
+        return db.collection("families").document(familyId)
+            .addSnapshotListener { snapshot, error in
+                if let error { completion(.failure(error)); return }
+                guard let snapshot, snapshot.exists,
+                      let family = try? snapshot.data(as: Family.self) else {
+                    completion(.failure(NSError(domain: "FamilyService", code: 404,
+                        userInfo: [NSLocalizedDescriptionKey: "Family not found"])))
+                    return
+                }
+                completion(.success(family))
+            }
+    }
 }
 
 

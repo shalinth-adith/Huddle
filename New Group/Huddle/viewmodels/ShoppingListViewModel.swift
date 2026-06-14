@@ -7,6 +7,7 @@
 
 import Foundation
   import Combine
+  import FirebaseFirestore
 
   class ShoppingListViewModel: ObservableObject {
       @Published var shoppingItems: [HuddleMessage] = []
@@ -15,18 +16,23 @@ import Foundation
 
       private let messageService: MessageService
       private let familyId: String
+      private var listener: ListenerRegistration?
 
       init(familyId: String, messageService: MessageService) {
           self.familyId = familyId
           self.messageService = messageService
       }
 
+      deinit { listener?.remove() }
 
       func loadItems() {
           isLoading = true
           errorMessage = nil
 
-          messageService.fetchShoppingItems(familyId: familyId) { [weak self] result in
+          // Live listener so items added/removed on another device appear here
+          // while the list is open.
+          listener?.remove()
+          listener = messageService.listenToShoppingItems(familyId: familyId) { [weak self] result in
               DispatchQueue.main.async {
                   self?.isLoading = false
 
