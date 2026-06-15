@@ -20,6 +20,7 @@ struct FamilyFeedView: View {
     @State private var showExpandedChat = false
     @State private var showTimeCapsule = false
     @State private var showAskHuddle = false
+    @State private var showMediaGallery = false
 
     // Lush animation states
     @State private var floatPhase = false
@@ -193,6 +194,10 @@ struct FamilyFeedView: View {
             TimeCapsuleView(capsuleService: capsuleService, authService: authService)
                 .environmentObject(authService)
         }
+        .fullScreenCover(isPresented: $showMediaGallery) {
+            MediaGalleryView(messageService: messageService, authService: authService)
+                .environmentObject(authService)
+        }
         .fullScreenCover(isPresented: $showAskHuddle) {
             AskHuddleView(
                 familyName: viewModel.family?.name ?? "your family",
@@ -308,6 +313,7 @@ struct FamilyFeedView: View {
             }
             Spacer()
             HStack(spacing: 10) {
+                GlassCircleButton(systemImage: "photo.on.rectangle.angled", action: { showMediaGallery = true })
                 ZStack(alignment: .topTrailing) {
                     GlassCircleButton(systemImage: "bell", action: { viewModel.showShareSheet = true })
                     Circle().fill(Color(hex: "FF8A66")).frame(width: 8, height: 8)

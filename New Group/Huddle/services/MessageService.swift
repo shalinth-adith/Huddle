@@ -19,6 +19,27 @@ class MessageService {
         decrypted(messages, familyId: familyId)
     }
 
+    /// Live listener for all photo messages (newest first) — powers the media gallery.
+    func listenToPhotos(
+        familyId: String,
+        completion: @escaping (Result<[HuddleMessage], Error>) -> Void
+    ) -> ListenerRegistration {
+        return db.collection("families")
+            .document(familyId)
+            .collection("messages")
+            .whereField("type", isEqualTo: MessageType.photo.rawValue)
+            .order(by: "createdAt", descending: true)
+            .addSnapshotListener { [weak self] snapshot, error in
+                if let error { completion(.failure(error)); return }
+                guard let documents = snapshot?.documents else { completion(.success([])); return }
+                let msgs = (try? documents.compactMap { try $0.data(as: HuddleMessage.self) }) ?? []
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let result = self?.decrypted(msgs, familyId: familyId) ?? msgs
+                    DispatchQueue.main.async { completion(.success(result)) }
+                }
+            }
+    }
+
     private func decrypted(_ messages: [HuddleMessage], familyId: String) -> [HuddleMessage] {
         guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId) else { return messages }
         return messages.map { msg in
@@ -439,23 +460,26 @@ class MessageService {
               .document(familyId)
               .collection("messages")
               .whereField("type", in: [MessageType.text.rawValue, MessageType.system.rawValue, MessageType.ping.rawValue, MessageType.photo.rawValue])
-              .order(by: "createdAt", descending: false)
-              .limit(to: 50) 
+              // Latest 50: order DESC + limit, then reverse to chronological below.
+              // (Ascending + limit returned the OLDEST 50, hiding every new message
+              // once a family passed 50 messages.)
+              .order(by: "createdAt", descending: true)
+              .limit(to: 50)
               .addSnapshotListener { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
                     return
                 }
-                
+
                 guard let documents = snapshot?.documents else {
                     completion(.success([]))
                     return
                 }
-                
+
                 do {
                     let messages = try documents.compactMap { doc in
                         try doc.data(as: HuddleMessage.self)
-                    }
+                    }.reversed().map { $0 }   // back to oldest→newest for the feed
                     DispatchQueue.global(qos: .userInitiated).async {
                         let result = self.decrypted(messages, familyId: familyId)
                         DispatchQueue.main.async { completion(.success(result)) }
