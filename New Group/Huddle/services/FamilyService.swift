@@ -29,13 +29,6 @@ creatorName, creatorPhotoBase64: creatorPhotoBase64, creatorPublicKey: creatorPu
             let groupKey = EncryptionService.generateGroupKey()
             try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
 
-            var encryptedGroupKeys: [String: String]? = nil
-            if let creatorPubKey = creatorPublicKey,
-               let privateKey = try? EncryptionService.loadPrivateKey(),
-               let encryptedKey = try? EncryptionService.encryptGroupKey(groupKey, for: creatorPubKey, senderPrivateKey: privateKey) {
-                encryptedGroupKeys = [creatorId: encryptedKey]
-            }
-
             let family = Family(
                 id: familyId,
                 name: familyName,
@@ -43,17 +36,22 @@ creatorName, creatorPhotoBase64: creatorPhotoBase64, creatorPublicKey: creatorPu
                 members: [member],
                 memberIds: [creatorId],
                 adminId: creatorId,
-                encryptedGroupKeys: encryptedGroupKeys
+                encryptedGroupKeys: nil
             )
 
             do {
-                try self?.db.collection("families").document(familyId).setData(from: family) {
-error in
+                try self?.db.collection("families").document(familyId).setData(from: family) { error in
                     if let error = error {
                         completion(.failure(error))
-                    } else {
-                        completion(.success(family))
+                        return
                     }
+                    // Store the ONE shared family key in a members-only location so
+                    // every member reads the same key (no per-device divergence).
+                    self?.db.collection("families").document(familyId)
+                        .collection("secrets").document("groupKey")
+                        .setData(["key": EncryptionService.exportKey(groupKey)]) { _ in
+                            completion(.success(family))
+                        }
                 }
             } catch {
                 completion(.failure(error))
@@ -217,6 +215,29 @@ error in
     func updateEncryptedGroupKey(familyId: String, userId: String, encryptedKey: String) {
         db.collection("families").document(familyId)
             .updateData(["encryptedGroupKeys.\(userId)": encryptedKey])
+    }
+
+    /// Syncs this device's cached group key to the family's single canonical key
+    /// (stored members-only at families/{id}/secrets/groupKey). Guarantees every
+    /// member encrypts/decrypts with the SAME key. If the secret doesn't exist
+    /// yet (legacy family), the local key is promoted to canonical.
+    func ensureGroupKey(familyId: String, completion: @escaping () -> Void) {
+        let secretRef = db.collection("families").document(familyId)
+            .collection("secrets").document("groupKey")
+
+        secretRef.getDocument(source: .default) { snapshot, _ in
+            if let b64 = snapshot?.data()?["key"] as? String,
+               let key = EncryptionService.importKey(b64) {
+                // Canonical key exists — adopt it (overwrites any divergent local key).
+                try? EncryptionService.saveGroupKey(key, familyId: familyId)
+                completion()
+            } else {
+                // No canonical key yet: establish one from the local key or a new key.
+                let key = EncryptionService.loadGroupKey(familyId: familyId) ?? EncryptionService.generateGroupKey()
+                try? EncryptionService.saveGroupKey(key, familyId: familyId)
+                secretRef.setData(["key": EncryptionService.exportKey(key)]) { _ in completion() }
+            }
+        }
     }
 
     /// Fully deletes an abandoned group: first the messages subcollection (must

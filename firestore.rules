@@ -81,6 +81,19 @@ service cloud.firestore {
         }
         allow read, create, update, delete: if isFamilyMember();
       }
+
+      // The shared family encryption key — readable/writable ONLY by members.
+      // The parent family doc is broadly readable (for join-by-code), but this
+      // secret subcollection is locked down so non-members can't get the key.
+      match /secrets/{docId} {
+        function isFamilyMember() {
+          return isSignedIn()
+            && request.auth.uid in
+               get(/databases/$(database)/documents/families/$(familyId)).data.memberIds;
+        }
+        allow read, create, update: if isFamilyMember();
+        allow delete: if false;
+      }
     }
 
     match /{document=**} {

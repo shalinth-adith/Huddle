@@ -446,39 +446,14 @@
       }
 
       func setupEncryption(family: Family, onKeyReady: (() -> Void)? = nil) {
-          guard let uid = authService.currentUser?.id,
-                let familyId = family.id else { return }
-          let groupKeys = family.encryptedGroupKeys ?? [:]
-          let members = family.members
-
-          DispatchQueue.global(qos: .userInitiated).async {
-              var didDeriveKey = false
-              if EncryptionService.loadGroupKey(familyId: familyId) == nil,
-                 let encryptedForMe = groupKeys[uid],
-                 let privateKey = try? EncryptionService.loadPrivateKey() {
-                  let candidateKeys = members.compactMap { $0.publicKey }
-                  if let groupKey = EncryptionService.decryptGroupKey(encryptedForMe, candidateSenderPublicKeys: candidateKeys, recipientPrivateKey: privateKey) {
-                      try? EncryptionService.saveGroupKey(groupKey, familyId: familyId)
-                      didDeriveKey = true
-                  }
-              }
-
-              guard let groupKey = EncryptionService.loadGroupKey(familyId: familyId),
-                    let privateKey = try? EncryptionService.loadPrivateKey() else { return }
-
-              for member in members {
-                  guard groupKeys[member.id] == nil,
-                        let memberPublicKey = member.publicKey,
-                        let encrypted = try? EncryptionService.encryptGroupKey(groupKey, for: memberPublicKey, senderPrivateKey: privateKey) else { continue }
-                  self.familyService.updateEncryptedGroupKey(
-                      familyId: familyId,
-                      userId: member.id,
-                      encryptedKey: encrypted
-                  )
-              }
-
-              if didDeriveKey {
-                  DispatchQueue.main.async { onKeyReady?() }
+          guard let familyId = family.id else { return }
+          // Sync this device to the family's single canonical key (members-only in
+          // Firestore). This is what guarantees every member reads every message —
+          // no per-device key divergence. Replaces the old ECDH handshake.
+          familyService.ensureGroupKey(familyId: familyId) { [weak self] in
+              DispatchQueue.main.async {
+                  self?.redecryptLoadedContent()
+                  onKeyReady?()
               }
           }
       }

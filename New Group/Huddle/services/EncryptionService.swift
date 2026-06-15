@@ -28,6 +28,16 @@ enum EncryptionService {
         try saveToKeychain(key: "huddle_groupKey_\(familyId)", data: data)
     }
 
+    /// Serialize a group key for storage in the members-only Firestore secret.
+    static func exportKey(_ key: SymmetricKey) -> String {
+        key.withUnsafeBytes { Data($0) }.base64EncodedString()
+    }
+
+    static func importKey(_ base64: String) -> SymmetricKey? {
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return SymmetricKey(data: data)
+    }
+
     static func loadGroupKey(familyId: String) -> SymmetricKey? {
         guard let data = try? loadFromKeychain(key: "huddle_groupKey_\(familyId)") else { return nil }
         return SymmetricKey(data: data)
