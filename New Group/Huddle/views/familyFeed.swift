@@ -151,6 +151,11 @@ struct FamilyFeedView: View {
             if tab == .messages { viewModel.markMessagesAsRead() }
         }
         .onDisappear { viewModel.cleanup() }
+        .alert("Photo not sent", isPresented: Binding(get: { viewModel.photoError != nil }, set: { if !$0 { viewModel.photoError = nil } })) {
+            Button("OK", role: .cancel) { viewModel.photoError = nil }
+        } message: {
+            Text(viewModel.photoError ?? "")
+        }
         .alert("Leave Huddle?", isPresented: $showLeaveAlert) {
             Button("Leave", role: .destructive) { viewModel.leaveGroup { onBack() } }
             Button("Cancel", role: .cancel) {}

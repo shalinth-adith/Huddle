@@ -27,6 +27,7 @@
       @Published var availableFamilies: [Family] = []
       // Ids of the user's OTHER groups (not the active one) that have unread messages.
       @Published var unreadGroupIds: Set<String> = []
+      @Published var photoError: String?
       private var groupListeners: [ListenerRegistration] = []
       private var groupCache: [String: Family] = [:]
 
@@ -168,16 +169,34 @@
                 let userId = authService.currentUser?.id,
                 let userName = authService.currentUser?.displayName else { return }
 
-          messageService.sendPhotoMessage(
-              familyId: familyId,
-              image: image,
-              caption: caption,
-              senderId: userId,
-              senderName: userName
-          ) { _ in
-              // The Firestore listener delivers the authoritative message; the
-              // sender's plaintext image is already warm in PhotoCache from upload.
+          // Photos hard-require the group key (text falls back to plaintext),
+          // so make sure it's synced from the canonical secret before encrypting.
+          familyService.ensureGroupKey(familyId: familyId) { [weak self] in
+              guard let self else { return }
+              self.messageService.sendPhotoMessage(
+                  familyId: familyId,
+                  image: image,
+                  caption: caption,
+                  senderId: userId,
+                  senderName: userName
+              ) { [weak self] result in
+                  if case .failure(let error) = result {
+                      DispatchQueue.main.async { self?.photoError = self?.friendlyPhotoError(error) }
+                  }
+              }
           }
+      }
+
+      private func friendlyPhotoError(_ error: Error) -> String {
+          if let enc = error as? EncryptionService.EncryptionError {
+              switch enc {
+              case .keychainError:
+                  return "Couldn't access this family's encryption key. Reopen the chat and try again."
+              default:
+                  return "Couldn't prepare the photo. Please try again."
+              }
+          }
+          return "Couldn't send photo: \(error.localizedDescription)"
       }
 
       func loadPhoto(for message: HuddleMessage, completion: @escaping (UIImage?) -> Void) {
